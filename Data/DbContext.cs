@@ -9,7 +9,7 @@ namespace FinanceApi.Data
 
         public DbSet<Stock> Stocks { get; set; }
 
-        protected override void OnModelCreating(ModelBuilder modelBuilder)
+       /* protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             // Seed data
             modelBuilder.Entity<Stock>().HasData(
@@ -17,7 +17,7 @@ namespace FinanceApi.Data
                 new Stock { Id = 2, Symbol = "MSFT", CompanyName = "Microsoft Corp.", Price = 320.75m, DividendYield = 0.8m, LastUpdated = DateTime.UtcNow },
                 new Stock { Id = 3, Symbol = "TSLA", CompanyName = "Tesla Inc.", Price = 250.10m, DividendYield = 0.0m, LastUpdated = DateTime.UtcNow }
             );
-        }
+        }*/
     }
 
 }

@@ -6,7 +6,7 @@
         public string Symbol { get; set; } = string.Empty;
         public string CompanyName { get; set; } = string.Empty;
         public decimal Price { get; set; }
-        public decimal DividendYield { get; set; }
+        public decimal? DividendYield { get; set; }
         public DateTime LastUpdated { get; set; }
     }
 }
