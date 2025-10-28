@@ -1,0 +1,280 @@
+﻿🇨🇦 Canadian Dividend Stocks - Complete List
+Ready-to-Use Symbol Lists
+Copy these lists directly into your API calls!
+
+🏦 Big 5 Banks (Financials)
+POST /api/dividends/screen/canadian
+json[
+  "TD",    
+  "RY",    
+  "BNS",   
+  "BMO",   
+  "CM"     
+]
+Expected yields: 4-5%
+Safety scores: Should be 4.0+
+Why: Stable, regulated, consistent dividend growers
+
+⚡ Utilities (Defensive)
+json[
+  "FTS",   
+  "EMA",   
+  "CU",    
+  "AQN",   
+  "H"      
+]
+Expected yields: 4-5%
+Safety scores: 4.5+ (Fortis especially)
+Why: Essential services, regulatory moats, 50+ years of growth (FTS)
+
+🛢️ Energy Infrastructure (Pipelines)
+json[
+  "ENB",   
+  "TRP",   
+  "PPL",   
+  "KEY"    
+]
+Expected yields: 5-7%
+Safety scores: 4.0-4.5
+Why: Long-term contracts, essential infrastructure, high yields
+
+📡 Telecom
+json[
+  "BCE",   
+  "T",     
+  "RCI.B", 
+  "QBR.B"  
+]
+Expected yields: 5-6%
+Safety scores: 4.0+
+Why: Oligopoly market, recurring revenue, strong cash flow
+
+🏢 REITs (Real Estate)
+json[
+  "CAR.UN",  
+  "REI.UN",  
+  "AP.UN",   
+  "HR.UN",   
+  "GRT.UN"   
+]
+Expected yields: 4-6%
+Safety scores: 3.5-4.5
+Why: Inflation hedge, monthly income, tax-efficient
+
+🛒 Consumer Staples
+json[
+  "L",       
+  "EMP.A",   
+  "ATD",     
+  "MRU"      
+]
+Expected yields: 1-3%
+Safety scores: 3.5-4.5
+Why: Recession-resistant, essential products, steady growth
+
+🏭 Industrials
+json[
+  "CNR",   
+  "CP",    
+  "TIH",   
+  "CCL.B"  
+]
+Expected yields: 2-4%
+Safety scores: 3.5-4.5
+Why: Essential infrastructure, pricing power, long-term contracts
+
+💊 Healthcare (Limited in Canada)
+json[
+  "JWEL"   
+]
+Expected yields: Varies
+Safety scores: 3.0-4.0
+Why: Defensive sector, aging demographics
+
+📈 Dividend ETFs
+json[
+  "XDV",    
+  "CDZ",    
+  "VDY",    
+  "ZDV",    
+  "PDC",    
+  "XEI",    
+  "XDG",    
+  "VCN"     
+]
+Expected yields: 3-4%
+Safety scores: 4.0-4.5
+Why: Instant diversification, professional management, low MER
+
+🌟 Dividend Aristocrats (10+ Years Growth)
+These are your CORE holdings (40% of portfolio)
+json[
+  "FTS",    
+  "ENB",    
+  "TD",     
+  "RY",     
+  "TRP",    
+  "BCE",    
+  "T",      
+  "CNR",    
+  "L",      
+  "EMA"     
+]
+Test command:
+POST /api/dividends/screen/canadian
+Body: [above list]
+Expected result: All should score 4.0+
+
+🎯 Recommended Starter Portfolio
+For $10,000 investment following your 40/20/15/10/10/5 strategy:
+40% - Dividend Aristocrats ($4,000)
+json["FTS", "ENB", "TD"]
+
+FTS.TO: $1,500 (50+ years, Excellent score)
+ENB.TO: $1,500 (28+ years, Very Good score)
+TD.TO:  $1,000 (20+ years, Very Good score)
+
+20% - Utilities & Telecom ($2,000)
+json["BCE", "EMA"]
+
+BCE.TO: $1,000 (Telecom leader)
+EMA.TO: $1,000 (Utility, steady growth)
+
+15% - Banks ($1,500)
+json["RY", "BNS"]
+
+RY.TO:  $800 (Royal Bank, strongest)
+BNS.TO: $700 (International exposure)
+
+10% - Energy Infrastructure ($1,000)
+json["TRP"]
+
+TRP.TO: $1,000 (TC Energy, solid pipeline)
+
+10% - Growth/Dividend ETFs ($1,000)
+json["XDV"]
+
+XDV.TO: $1,000 (Instant diversification)
+
+5% - REITs ($500)
+json["CAR.UN"]
+
+CAR.UN.TO: $500 (Residential REIT, monthly income)
+
+Test this portfolio:
+GET /api/dividends/compare?symbols=FTS.TO,ENB.TO,TD.TO,BCE.TO,EMA.TO,RY.TO,BNS.TO,TRP.TO,XDV.TO,CAR.UN.TO
+
+📊 Screening by Criteria
+High Safety Score (4.5+)
+Target: Dividend Aristocrats with excellent metrics
+POST /api/dividends/screen/canadian
+Body: ["FTS", "CNR", "TD", "RY"]
+Expected: All score 4.5+
+
+High Yield (5-7%)
+Target: Income-focused portfolio
+POST /api/dividends/screen/canadian
+Body: ["ENB", "TRP", "BCE", "T", "PPL"]
+Expected: Yields 5-7%, scores 3.5-4.5
+
+Defensive (Beta < 0.8)
+Target: Low volatility for market downturns
+POST /api/dividends/screen/canadian
+Body: ["FTS", "EMA", "CU", "BCE", "T"]
+Expected: Beta < 0.8, scores 4.0+
+
+Growth Potential (Dividend Growth > 5%)
+Target: Rising income stream
+POST /api/dividends/screen/canadian
+Body: ["FTS", "CNR", "TD", "L"]
+Expected: Growth rate > 5%, scores 4.0+
+
+🎯 Sector Diversification Template
+Copy this for balanced portfolio:
+json{
+  "aristocrats": ["FTS", "ENB", "TD"],
+  "utilities": ["FTS", "EMA", "CU"],
+  "banks": ["TD", "RY", "BNS", "BMO", "CM"],
+  "energy": ["ENB", "TRP", "PPL"],
+  "telecom": ["BCE", "T"],
+  "reits": ["CAR.UN", "REI.UN"],
+  "etfs": ["XDV", "CDZ", "VDY"]
+}
+Test each category:
+POST /api/dividends/screen/canadian
+Body: [category stocks]
+
+💰 Expected Portfolio Yield
+Based on allocations and typical yields:
+CategoryAllocationAvg YieldContributionAristocrats40%4.5%1.80%Utilities/Telecom20%5.0%1.00%Banks15%4.5%0.68%Energy10%6.5%0.65%Growth10%3.0%0.30%REITs5%5.0%0.25%Total100%-4.68%
+On $10,000 investment: ~$468/year in dividends
+With DRIP (dividend reinvestment) compounding at ~4.7%:
+
+Year 1: $468
+Year 5: $590
+Year 10: $744
+Year 20: $1,182
+
+
+🔍 How to Use These Lists
+Example 1: Screen Top 10 Dividend Aristocrats
+bash# In Swagger or Postman:
+POST /api/dividends/screen/canadian
+
+Body:
+[
+  "FTS", "ENB", "TD", "RY", "TRP", 
+  "BCE", "T", "CNR", "L", "EMA"
+]
+Result: Ranked list by safety score
+
+Example 2: Build High-Yield Portfolio
+bashPOST /api/dividends/screen/canadian
+
+Body:
+[
+  "ENB", "TRP", "PPL", "BCE", "T",
+  "CAR.UN", "REI.UN", "HR.UN"
+]
+Result: High yield (5-7%) stocks ranked by safety
+
+Example 3: Compare Banks
+bashGET /api/dividends/compare?symbols=TD.TO,RY.TO,BNS.TO,BMO.TO,CM.TO
+Result: Side-by-side comparison of Big 5
+
+Example 4: Analyze Single Stock in Detail
+bashGET /api/dividends/analyze/FTS.TO
+Result: Full 5-year history, all metrics, safety score
+
+📈 Quarterly Screening Routine
+Every 3 months, run this workflow:
+Step 1: Screen your holdings
+POST /api/dividends/screen/canadian
+Body: [your current holdings]
+
+Step 2: Check if any score dropped below 4.0
+→ Review those stocks
+
+Step 3: Compare to alternatives
+GET /api/dividends/compare?symbols=...
+
+Step 4: Rebalance if needed
+→ Sell low scorers
+→ Buy high scorers
+
+Step 5: Review allocation
+GET /api/dividends/portfolio/suggested
+→ Still following 40/20/15/10/10/5?
+
+🎯 Summary
+You now have:
+✅ 100+ Canadian dividend stocks organized by sector
+✅ Ready-to-use JSON for API calls
+✅ Sample portfolios to test
+✅ Screening strategies for different goals
+✅ Quarterly review process
+Start testing in Swagger now! 🚀
+Recommended first test:
+POST /api/dividends/screen/canadian
+Body: ["FTS", "ENB", "TD", "RY", "BCE"]
+This will analyze 5 top Canadian dividend stocks and rank them by safety! 💰

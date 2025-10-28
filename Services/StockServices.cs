@@ -19,7 +19,7 @@ namespace FinanceApi.Services
         private readonly ILogger<StockService> _logger;
         private readonly string _apiKey;
         private static readonly Dictionary<string, (DateTime FetchTime, decimal? Price, string CompanyName, decimal? DividendYield)> _cache = new();
-        private static readonly TimeSpan CacheExpiration = TimeSpan.FromMinutes(15); // Longer cache for free tier
+        // Cache permanently - no expiration (stocks in DB are refreshed manually)
 
         // Common stock name mapping to avoid extra API calls
         private static readonly Dictionary<string, string> CompanyNames = new()
@@ -53,24 +53,50 @@ namespace FinanceApi.Services
 
         /// <summary>
         /// Get stock info with MINIMAL API calls (only 1 call per stock)
+        /// Uses Alpha Vantage first, falls back to Yahoo Finance if it fails
         /// </summary>
         public async Task<(decimal? Price, string CompanyName, decimal? DividendYield, bool IsLive)> GetLiveStockInfoAsync(string symbol)
         {
             try
             {
-                // Check cache first
+                // Check cache first (in-memory cache for current session)
                 if (_cache.TryGetValue(symbol, out var cachedData))
                 {
-                    if (DateTime.UtcNow - cachedData.FetchTime < CacheExpiration)
-                    {
-                        _logger.LogInformation($"✓ Returning cached data for {symbol} (saved API call)");
-                        return (cachedData.Price, cachedData.CompanyName, cachedData.DividendYield, false);
-                    }
+                    _logger.LogInformation($"✓ Returning cached data for {symbol} (saved API call)");
+                    return (cachedData.Price, cachedData.CompanyName, cachedData.DividendYield, false);
                 }
 
                 _logger.LogInformation($"→ Fetching live data for {symbol} from Alpha Vantage (API call)");
 
-                // Use GLOBAL_QUOTE only (1 API call instead of 3)
+                // Try Alpha Vantage first
+                var alphaVantageResult = await TryAlphaVantageAsync(symbol);
+                if (alphaVantageResult.Price.HasValue)
+                {
+                    return alphaVantageResult;
+                }
+
+                // If Alpha Vantage fails, try Yahoo Finance as fallback
+                _logger.LogInformation($"→ Alpha Vantage failed, trying Yahoo Finance fallback for {symbol}");
+                var yahooResult = await TryYahooFinanceAsync(symbol);
+                if (yahooResult.Price.HasValue)
+                {
+                    return yahooResult;
+                }
+
+                // Both failed, return cached or default
+                return GetCachedOrDefault(symbol);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"✗ Error fetching {symbol}: {ex.Message}");
+                return GetCachedOrDefault(symbol);
+            }
+        }
+
+        private async Task<(decimal? Price, string CompanyName, decimal? DividendYield, bool IsLive)> TryAlphaVantageAsync(string symbol)
+        {
+            try
+            {
                 var url = $"https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol={symbol}&apikey={_apiKey}";
 
                 using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
@@ -82,68 +108,108 @@ namespace FinanceApi.Services
                 if (json["Error Message"] != null)
                 {
                     _logger.LogError($"✗ Alpha Vantage API error for {symbol}: {json["Error Message"]}");
-                    return GetCachedOrDefault(symbol);
+                    return (null, symbol, null, false);
                 }
 
                 if (json["Note"] != null)
                 {
-                    _logger.LogWarning($"⚠ Alpha Vantage rate limit reached! Using cached data if available.");
-                    _logger.LogWarning($"Message: {json["Note"]}");
-                    return GetCachedOrDefault(symbol);
+                    _logger.LogWarning($"⚠ Alpha Vantage rate limit reached!");
+                    return (null, symbol, null, false);
                 }
 
                 // Extract data from Global Quote
                 var globalQuote = json["Global Quote"];
                 if (globalQuote == null || !globalQuote.HasValues)
                 {
-                    _logger.LogWarning($"✗ No data returned for {symbol} - symbol may be invalid");
-                    return GetCachedOrDefault(symbol);
+                    _logger.LogWarning($"✗ No Alpha Vantage data for {symbol}");
+                    return (null, symbol, null, false);
                 }
 
                 // Parse price
-                decimal? price = null;
                 var priceString = globalQuote["05. price"]?.ToString();
-                if (!string.IsNullOrEmpty(priceString) && decimal.TryParse(priceString, out var parsedPrice))
+                if (string.IsNullOrEmpty(priceString) || !decimal.TryParse(priceString, out var price))
                 {
-                    price = parsedPrice;
-                }
-                else
-                {
-                    _logger.LogWarning($"✗ Could not parse price for {symbol}");
-                    return GetCachedOrDefault(symbol);
+                    return (null, symbol, null, false);
                 }
 
-                // Get company name from our mapping (no API call)
-                string companyName = CompanyNames.ContainsKey(symbol)
-                    ? CompanyNames[symbol]
-                    : symbol;
+                // Get company name from our mapping
+                string companyName = CompanyNames.ContainsKey(symbol) ? CompanyNames[symbol] : symbol;
 
-                // For dividend yield, we'd need OVERVIEW endpoint (extra API call)
-                // To save API calls, we'll skip this on free tier
-                // If you need it, uncomment the GetDividendYieldAsync call below
-                decimal? dividendYield = null; // await GetDividendYieldAsync(symbol);
+                // Cache the result
+                _cache[symbol] = (DateTime.UtcNow, price, companyName, null);
 
-                // Cache the result for 15 minutes
-                _cache[symbol] = (DateTime.UtcNow, price, companyName, dividendYield);
+                _logger.LogInformation($"✓ Alpha Vantage: {symbol} = ${price} - {companyName}");
 
-                _logger.LogInformation($"✓ Successfully fetched {symbol}: ${price} - {companyName}");
-
-                return (price, companyName, dividendYield, true);
-            }
-            catch (HttpRequestException ex)
-            {
-                _logger.LogError($"✗ HTTP error for {symbol}: {ex.Message}");
-                return GetCachedOrDefault(symbol);
-            }
-            catch (TaskCanceledException ex)
-            {
-                _logger.LogError($"✗ Timeout for {symbol}: {ex.Message}");
-                return GetCachedOrDefault(symbol);
+                return (price, companyName, null, true);
             }
             catch (Exception ex)
             {
-                _logger.LogError($"✗ Error fetching {symbol}: {ex.Message}");
-                return GetCachedOrDefault(symbol);
+                _logger.LogWarning($"⚠ Alpha Vantage error for {symbol}: {ex.Message}");
+                return (null, symbol, null, false);
+            }
+        }
+
+        private async Task<(decimal? Price, string CompanyName, decimal? DividendYield, bool IsLive)> TryYahooFinanceAsync(string symbol)
+        {
+            try
+            {
+                // Yahoo Finance API v7/v8 endpoint (free, no auth required)
+                var url = $"https://query1.finance.yahoo.com/v8/finance/chart/{symbol}?interval=1d&range=1d";
+
+                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+                var response = await _httpClient.GetStringAsync(url, cts.Token);
+
+                var json = JObject.Parse(response);
+
+                // Check for errors
+                if (json["chart"]?["error"] != null)
+                {
+                    _logger.LogWarning($"✗ Yahoo Finance error for {symbol}");
+                    return (null, symbol, null, false);
+                }
+
+                // Extract price
+                var result = json["chart"]?["result"]?[0];
+                if (result == null)
+                {
+                    _logger.LogWarning($"✗ No Yahoo Finance data for {symbol}");
+                    return (null, symbol, null, false);
+                }
+
+                var meta = result["meta"];
+                var priceValue = meta?["regularMarketPrice"];
+                var longName = meta?["longName"]?.ToString();
+                var shortName = meta?["shortName"]?.ToString();
+
+                if (priceValue == null || !decimal.TryParse(priceValue.ToString(), out var price))
+                {
+                    return (null, symbol, null, false);
+                }
+
+                // Use longName or shortName, fallback to symbol
+                string companyName = !string.IsNullOrEmpty(longName) ? longName :
+                                    (!string.IsNullOrEmpty(shortName) ? shortName : symbol);
+
+                // Try to get dividend yield if available
+                decimal? dividendYield = null;
+                var trailingAnnualDividendYield = meta?["trailingAnnualDividendYield"];
+                if (trailingAnnualDividendYield != null &&
+                    decimal.TryParse(trailingAnnualDividendYield.ToString(), out var yieldValue))
+                {
+                    dividendYield = yieldValue * 100; // Convert to percentage
+                }
+
+                // Cache the result
+                _cache[symbol] = (DateTime.UtcNow, price, companyName, dividendYield);
+
+                _logger.LogInformation($"✓ Yahoo Finance: {symbol} = ${price} - {companyName}");
+
+                return (price, companyName, dividendYield, true);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning($"⚠ Yahoo Finance error for {symbol}: {ex.Message}");
+                return (null, symbol, null, false);
             }
         }
 

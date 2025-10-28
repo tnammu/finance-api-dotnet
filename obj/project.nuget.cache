@@ -1,11 +1,14 @@
 {
   "version": 2,
-  "dgSpecHash": "YFOHIBGC8jvEBTx+t/kMXbKR0XgPuMtaD+tWiu3yKF8i7plbvJE0CFKBt2SullJmywD1Vkx9Eazsq8fMWZCsXQ==",
+  "dgSpecHash": "xmbv0rfI4P2tpVDh+/mnYMZQsmYKwLo1qQNckDMpUARnQDLP3tzyhKEhvjNeCLQsw1E6AmyzJVhzKcItGueIdw==",
   "success": true,
   "projectFilePath": "C:\\Users\\Charan\\source\\repos\\FinanceApi\\FinanceApi.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\Charan\\.nuget\\packages\\azure.core\\1.24.0\\azure.core.1.24.0.nupkg.sha512",
     "C:\\Users\\Charan\\.nuget\\packages\\azure.identity\\1.6.0\\azure.identity.1.6.0.nupkg.sha512",
+    "C:\\Users\\Charan\\.nuget\\packages\\csvhelper\\30.0.1\\csvhelper.30.0.1.nupkg.sha512",
+    "C:\\Users\\Charan\\.nuget\\packages\\flurl\\3.0.7\\flurl.3.0.7.nupkg.sha512",
+    "C:\\Users\\Charan\\.nuget\\packages\\flurl.http\\3.2.4\\flurl.http.3.2.4.nupkg.sha512",
     "C:\\Users\\Charan\\.nuget\\packages\\htmlagilitypack\\1.12.4\\htmlagilitypack.1.12.4.nupkg.sha512",
     "C:\\Users\\Charan\\.nuget\\packages\\humanizer.core\\2.14.1\\humanizer.core.2.14.1.nupkg.sha512",
     "C:\\Users\\Charan\\.nuget\\packages\\microsoft.aspnetcore.openapi\\7.0.1\\microsoft.aspnetcore.openapi.7.0.1.nupkg.sha512",
@@ -86,7 +89,19 @@
     "C:\\Users\\Charan\\.nuget\\packages\\system.text.json\\7.0.0\\system.text.json.7.0.0.nupkg.sha512",
     "C:\\Users\\Charan\\.nuget\\packages\\system.threading.tasks\\4.3.0\\system.threading.tasks.4.3.0.nupkg.sha512",
     "C:\\Users\\Charan\\.nuget\\packages\\system.threading.tasks.extensions\\4.5.4\\system.threading.tasks.extensions.4.5.4.nupkg.sha512",
-    "C:\\Users\\Charan\\.nuget\\packages\\system.windows.extensions\\5.0.0\\system.windows.extensions.5.0.0.nupkg.sha512"
+    "C:\\Users\\Charan\\.nuget\\packages\\system.windows.extensions\\5.0.0\\system.windows.extensions.5.0.0.nupkg.sha512",
+    "C:\\Users\\Charan\\.nuget\\packages\\yahoofinanceapi\\2.3.0\\yahoofinanceapi.2.3.0.nupkg.sha512"
   ],
-  "logs": []
+  "logs": [
+    {
+      "code": "NU1603",
+      "level": "Warning",
+      "warningLevel": 1,
+      "message": "FinanceApi depends on YahooFinanceApi (>= 2.2.2) but YahooFinanceApi 2.2.2 was not found. An approximate best match of YahooFinanceApi 2.3.0 was resolved.",
+      "libraryId": "YahooFinanceApi",
+      "targetGraphs": [
+        "net7.0"
+      ]
+    }
+  ]
 }

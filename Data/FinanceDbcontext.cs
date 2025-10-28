@@ -3,9 +3,9 @@ using Microsoft.EntityFrameworkCore;
 
 namespace FinanceApi.Data
 {
-    public class FinanceContext : DbContext
+    public class FinanceDbcontext : DbContext
     {
-        public FinanceContext(DbContextOptions<FinanceContext> options) : base(options) { }
+        public FinanceDbcontext(DbContextOptions<FinanceDbcontext> options) : base(options) { }
 
         public DbSet<Stock> Stocks { get; set; }
 

@@ -8,11 +8,11 @@ namespace FinanceApi.Services
 {
     public class LiveStockSeeder
     {
-        private readonly FinanceContext _context;
+        private readonly FinanceDbcontext _context;
         private readonly StockService _stockService;
         private readonly ILogger<LiveStockSeeder> _logger;
 
-        public LiveStockSeeder(FinanceContext context, StockService stockService, ILogger<LiveStockSeeder> logger)
+        public LiveStockSeeder(FinanceDbcontext context, StockService stockService, ILogger<LiveStockSeeder> logger)
         {
             _context = context;
             _stockService = stockService;

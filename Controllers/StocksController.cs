@@ -10,11 +10,11 @@ namespace FinanceApi.Controllers
     [Route("api/[controller]")]
     public class StocksController : ControllerBase
     {
-        private readonly FinanceContext _context;
+        private readonly FinanceDbcontext _context;
         private readonly StockService _stockService;
         private readonly ILogger<StocksController> _logger;
 
-        public StocksController(FinanceContext context, StockService stockService, ILogger<StocksController> logger)
+        public StocksController(FinanceDbcontext context, StockService stockService, ILogger<StocksController> logger)
         {
             _context = context;
             _stockService = stockService;
@@ -233,6 +233,116 @@ namespace FinanceApi.Controllers
         }
 
         /// <summary>
+        /// Bulk import multiple stocks by symbols
+        /// Example: POST /api/stocks/bulk with body { "symbols": ["AAPL", "MSFT", "TD", "RY"] }
+        /// </summary>
+        [HttpPost("bulk")]
+        public async Task<ActionResult<object>> BulkAddStocks([FromBody] BulkAddStockRequest request)
+        {
+            if (request.Symbols == null || !request.Symbols.Any())
+            {
+                return BadRequest(new { message = "Symbols list is required" });
+            }
+
+            var results = new List<object>();
+            var successCount = 0;
+            var skipCount = 0;
+            var failCount = 0;
+
+            _logger.LogInformation($"📦 Bulk import started: {request.Symbols.Count} symbols");
+
+            foreach (var symbolInput in request.Symbols)
+            {
+                try
+                {
+                    var symbol = symbolInput.ToUpper().Trim();
+
+                    // Auto-add .TO for Canadian stocks if not present
+                    if (request.AddCanadianSuffix && !symbol.Contains(".TO") && !symbol.Contains("."))
+                    {
+                        symbol = $"{symbol}.TO";
+                        _logger.LogInformation($"  🇨🇦 Added .TO suffix: {symbolInput} → {symbol}");
+                    }
+
+                    // Check if already exists
+                    if (await _context.Stocks.AnyAsync(s => s.Symbol == symbol))
+                    {
+                        skipCount++;
+                        results.Add(new
+                        {
+                            Symbol = symbol,
+                            Status = "Skipped",
+                            Message = "Already exists"
+                        });
+                        continue;
+                    }
+
+                    // Add delay to respect rate limits (500ms = max 2 per second, 120 per minute)
+                    await Task.Delay(500);
+
+                    // Fetch live data
+                    var liveInfo = await _stockService.GetLiveStockInfoAsync(symbol);
+
+                    if (!liveInfo.Price.HasValue)
+                    {
+                        failCount++;
+                        results.Add(new
+                        {
+                            Symbol = symbol,
+                            Status = "Failed",
+                            Message = "Could not fetch data - symbol may be invalid"
+                        });
+                        continue;
+                    }
+
+                    var stock = new Stock
+                    {
+                        Symbol = symbol,
+                        CompanyName = liveInfo.CompanyName ?? symbol,
+                        Price = liveInfo.Price.Value,
+                        DividendYield = liveInfo.DividendYield,
+                        LastUpdated = DateTime.UtcNow
+                    };
+
+                    _context.Stocks.Add(stock);
+                    await _context.SaveChangesAsync();
+
+                    successCount++;
+                    results.Add(new
+                    {
+                        Symbol = symbol,
+                        Status = "Added",
+                        CompanyName = stock.CompanyName,
+                        Price = stock.Price
+                    });
+
+                    _logger.LogInformation($"  ✓ Added {symbol} - ${stock.Price}");
+                }
+                catch (Exception ex)
+                {
+                    failCount++;
+                    _logger.LogError($"  ✗ Error adding {symbolInput}: {ex.Message}");
+                    results.Add(new
+                    {
+                        Symbol = symbolInput,
+                        Status = "Error",
+                        Message = ex.Message
+                    });
+                }
+            }
+
+            return Ok(new
+            {
+                TotalSubmitted = request.Symbols.Count,
+                SuccessCount = successCount,
+                SkippedCount = skipCount,
+                FailCount = failCount,
+                CompletedAt = DateTime.UtcNow,
+                Results = results
+            });
+        }
+
+        /// <summary>
         /// Add a new stock by symbol
         /// Example: POST /api/stocks with body { "symbol": "GOOGL" }
         /// </summary>
@@ -293,10 +403,50 @@ namespace FinanceApi.Controllers
 
             return Ok(new { message = $"Stock {stock.Symbol} deleted successfully" });
         }
+
+        /// <summary>
+        /// Export all stocks to CSV
+        /// Example: GET /api/stocks/export/csv
+        /// </summary>
+        [HttpGet("export/csv")]
+        public async Task<IActionResult> ExportToCsv()
+        {
+            var stocks = await _context.Stocks.OrderBy(s => s.Symbol).ToListAsync();
+
+            var csv = new System.Text.StringBuilder();
+
+            // Header
+            csv.AppendLine("Symbol,Company Name,Price,Dividend Yield (%),Last Updated,Data Age (minutes)");
+
+            // Data rows
+            foreach (var stock in stocks)
+            {
+                var minutesOld = (int)(DateTime.UtcNow - stock.LastUpdated).TotalMinutes;
+                var dividendYield = stock.DividendYield.HasValue ? stock.DividendYield.Value.ToString("F2") : "";
+
+                csv.AppendLine($"{stock.Symbol}," +
+                              $"\"{stock.CompanyName}\"," +
+                              $"{stock.Price:F2}," +
+                              $"{dividendYield}," +
+                              $"{stock.LastUpdated:yyyy-MM-dd HH:mm:ss}," +
+                              $"{minutesOld}");
+            }
+
+            var fileName = $"stocks_export_{DateTime.UtcNow:yyyyMMdd_HHmmss}.csv";
+            var bytes = System.Text.Encoding.UTF8.GetBytes(csv.ToString());
+
+            return File(bytes, "text/csv", fileName);
+        }
     }
 
     public class AddStockRequest
     {
         public string Symbol { get; set; } = string.Empty;
+    }
+
+    public class BulkAddStockRequest
+    {
+        public List<string> Symbols { get; set; } = new();
+        public bool AddCanadianSuffix { get; set; } = true;
     }
 }

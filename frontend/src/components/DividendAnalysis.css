@@ -1,0 +1,144 @@
+.dividend-analysis .search-section {
+  margin-bottom: 1rem;
+}
+
+.analysis-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 1rem;
+}
+
+.analysis-header .company-name {
+  color: #7f8c8d;
+  margin: 0.25rem 0 0.5rem 0;
+}
+
+.safety-badge {
+  text-align: center;
+  padding: 1rem;
+  border: 3px solid;
+  border-radius: 8px;
+  min-width: 100px;
+}
+
+.safety-score {
+  font-size: 2.5rem;
+  font-weight: bold;
+  line-height: 1;
+}
+
+.safety-rating {
+  font-size: 0.85rem;
+  color: #7f8c8d;
+  margin-top: 0.25rem;
+  text-transform: uppercase;
+  font-weight: 500;
+}
+
+.info-banner {
+  background: #d1ecf1;
+  color: #0c5460;
+  padding: 0.75rem;
+  border-radius: 6px;
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
+}
+
+.cached-stocks {
+  display: grid;
+  gap: 1rem;
+}
+
+.cached-stock-item {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 1.5rem;
+  align-items: center;
+  padding: 1rem;
+  background: #f8f9fa;
+  border-radius: 6px;
+}
+
+.cached-stock-item strong {
+  display: block;
+  font-size: 1.1rem;
+  color: #2c3e50;
+}
+
+.cached-stock-item p {
+  margin: 0.25rem 0 0.5rem 0;
+  color: #7f8c8d;
+  font-size: 0.85rem;
+}
+
+.cached-stock-item .metric {
+  display: flex;
+  gap: 0.5rem;
+  margin: 0.25rem 0;
+  font-size: 0.9rem;
+}
+
+.cached-stock-item .metric span {
+  color: #7f8c8d;
+}
+
+.cached-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.cached-actions button {
+  padding: 0.5rem 1rem;
+  font-size: 0.85rem;
+}
+
+.top-stocks {
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.top-stock-item {
+  display: grid;
+  grid-template-columns: 40px 1fr auto auto;
+  gap: 1rem;
+  align-items: center;
+  padding: 1rem;
+  background: #f8f9fa;
+  border-radius: 6px;
+}
+
+.top-stock-item .rank {
+  width: 40px;
+  height: 40px;
+  background: #3498db;
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 1.1rem;
+}
+
+.top-stock-item .stock-details {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.top-stock-item .stock-details strong {
+  font-size: 1.1rem;
+  color: #2c3e50;
+}
+
+.top-stock-item .stock-details span {
+  color: #7f8c8d;
+  font-size: 0.85rem;
+}
+
+.top-stock-item .score {
+  font-size: 1.5rem;
+  font-weight: bold;
+}
