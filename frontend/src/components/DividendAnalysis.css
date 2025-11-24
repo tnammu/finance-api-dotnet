@@ -2,6 +2,15 @@
   margin-bottom: 1rem;
 }
 
+/* Fix white text issue - ensure stat values are dark */
+.dividend-analysis .stat-card .value {
+  color: #2c3e50 !important;
+}
+
+.dividend-analysis .stat-card h4 {
+  color: #666 !important;
+}
+
 .analysis-header {
   display: flex;
   justify-content: space-between;

@@ -17,19 +17,33 @@ builder.Services.AddCors(options =>
 });
 
 // Add services
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        // Prevent circular reference errors
+        options.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
+        // Optional: Write indented for easier debugging
+        options.JsonSerializerOptions.WriteIndented = false;
+    });
 
-// Add Database Context
+// Add Database Context with SQLite optimizations for concurrent access
 builder.Services.AddDbContext<DividendDbContext>(options =>
-    options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
-builder.Services.AddDbContext<FinanceDbcontext>(options =>
-    options.UseSqlite(builder.Configuration.GetConnectionString("FinanceConnection")));
+{
+    var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+    options.UseSqlite(connectionString, sqliteOptions =>
+    {
+        sqliteOptions.CommandTimeout(30); // 30 second timeout
+    });
+});
+// builder.Services.AddDbContext<FinanceDbcontext>(options =>
+//     options.UseSqlite(builder.Configuration.GetConnectionString("FinanceConnection")));
 
 
 // Add HTTP Client Services
 builder.Services.AddHttpClient<DividendAnalysisService>();
-builder.Services.AddHttpClient<StockService>();
-builder.Services.AddScoped<LiveStockSeeder>();
+builder.Services.AddHttpClient();
+builder.Services.AddScoped<PerformanceComparisonService>();
+// LiveStockSeeder removed - not used (was dependent on removed StockService)
 
 // Add Swagger
 builder.Services.AddEndpointsApiExplorer();
@@ -45,16 +59,17 @@ builder.Services.AddSwaggerGen(c =>
 
 var app = builder.Build();
 
-// Create databases if they don't exist
+// Create databases if they don't exist and configure SQLite
 using (var scope = app.Services.CreateScope())
 {
     var dividendDbContext = scope.ServiceProvider.GetRequiredService<DividendDbContext>();
     dividendDbContext.Database.EnsureCreated();
-    Console.WriteLine("✓ Dividend database ready (dividends.db)");
+    dividendDbContext.ConfigureSqlite(); // Configure WAL mode ONCE at startup
+    Console.WriteLine("✓ Dividend database ready with WAL mode (dividends.db)");
 
-    var financeDbContext = scope.ServiceProvider.GetRequiredService<FinanceDbcontext>();
-    financeDbContext.Database.EnsureCreated();
-    Console.WriteLine("✓ Finance database ready (finance.db)");
+    // var financeDbContext = scope.ServiceProvider.GetRequiredService<FinanceDbcontext>();
+    // financeDbContext.Database.EnsureCreated();
+    // Console.WriteLine("✓ Finance database ready (finance.db)");
 }
 
 // Configure pipeline

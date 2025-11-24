@@ -1,10 +1,5 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Net.Http;
-using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Configuration;
+using System.Diagnostics;
 using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json.Linq;
 using FinanceApi.Data;
@@ -43,7 +38,7 @@ namespace FinanceApi.Services
         /// <summary>
         /// Get dividend analysis - checks DB first, then API if needed
         /// </summary>
-        public async Task<DividendAnalysis?> GetDividendAnalysisAsync(string symbol, bool forceRefresh = false)
+        public async Task<DividendAnalysis?> GetDividendAnalysisAsync(string symbol, bool forceRefresh = false, bool preferYahoo = false)
         {
             try
             {
@@ -52,16 +47,27 @@ namespace FinanceApi.Services
                 _logger.LogInformation($"========================================");
                 _logger.LogInformation($"→ Requesting analysis for: {symbol}");
 
-                // STEP 1: Check database first
+                // STEP 1: Check database first (30 minute cache)
+                const int CACHE_EXPIRATION_MINUTES = 30;
+
                 if (!forceRefresh)
                 {
                     var cached = await GetFromDatabaseAsync(symbol);
                     if (cached != null)
                     {
                         var age = DateTime.UtcNow - cached.LastUpdated;
-                        _logger.LogInformation($"✓ CACHE HIT! Data age: {age.TotalDays:F1} days (saved 2-3 API calls)");
-                        _logger.LogInformation($"========================================");
-                        return cached;
+
+                        // Check if cache is still valid (less than 30 minutes old)
+                        if (age.TotalMinutes < CACHE_EXPIRATION_MINUTES)
+                        {
+                            _logger.LogInformation($"✓ CACHE HIT! Data age: {age.TotalMinutes:F1} minutes (saved 2-3 API calls)");
+                            _logger.LogInformation($"========================================");
+                            return cached;
+                        }
+                        else
+                        {
+                            _logger.LogInformation($"⏰ Cache expired (age: {age.TotalMinutes:F1} minutes > {CACHE_EXPIRATION_MINUTES} min limit), refreshing...");
+                        }
                     }
                     else
                     {
@@ -73,10 +79,23 @@ namespace FinanceApi.Services
                     _logger.LogInformation($"🔄 Force refresh requested, fetching from API...");
                 }
 
-                // STEP 2: Fetch from API
-                _logger.LogInformation($"📡 Calling Alpha Vantage API...");
+                // STEP 2: Fetch from API (prefer Yahoo if specified, otherwise try Alpha Vantage with Yahoo fallback)
+                JObject? overview;
+                decimal? currentPrice;
 
-                var overview = await FetchCompanyOverviewAsync(symbol);
+                if (preferYahoo)
+                {
+                    _logger.LogInformation($"📡 Calling Yahoo Finance API (preferred)...");
+                    overview = await FetchYahooFinanceOverviewAsync(symbol);
+                    currentPrice = await FetchYahooFinanceCurrentPriceAsync(symbol);
+                }
+                else
+                {
+                    _logger.LogInformation($"📡 Calling Alpha Vantage API...");
+                    overview = await FetchCompanyOverviewAsync(symbol);
+                    currentPrice = await FetchCurrentPriceAsync(symbol);
+                }
+
                 if (overview == null)
                 {
                     _logger.LogError($"❌ Failed to fetch overview data");
@@ -85,9 +104,6 @@ namespace FinanceApi.Services
                 }
 
                 var dividendHistory = await FetchDividendHistoryAsync(symbol);
-
-                // Fetch current stock price for accurate dividend yield calculation
-                var currentPrice = await FetchCurrentPriceAsync(symbol);
 
                 // STEP 3: Calculate metrics
                 var analysis = CalculateDividendMetrics(symbol, overview, dividendHistory, currentPrice);
@@ -136,6 +152,7 @@ namespace FinanceApi.Services
                     CompanyName = cached.CompanyName,
                     Sector = cached.Sector,
                     Industry = cached.Industry,
+                    CurrentPrice = cached.CurrentPrice,
                     DividendYield = cached.DividendYield,
                     DividendPerShare = cached.DividendPerShare,
                     PayoutRatio = cached.PayoutRatio,
@@ -191,6 +208,7 @@ namespace FinanceApi.Services
                     existing.CompanyName = analysis.CompanyName;
                     existing.Sector = analysis.Sector;
                     existing.Industry = analysis.Industry;
+                    existing.CurrentPrice = analysis.CurrentPrice;
                     existing.DividendYield = analysis.DividendYield;
                     existing.DividendPerShare = analysis.DividendPerShare;
                     existing.PayoutRatio = analysis.PayoutRatio;
@@ -218,6 +236,7 @@ namespace FinanceApi.Services
                         CompanyName = analysis.CompanyName,
                         Sector = analysis.Sector,
                         Industry = analysis.Industry,
+                        CurrentPrice = analysis.CurrentPrice,
                         DividendYield = analysis.DividendYield,
                         DividendPerShare = analysis.DividendPerShare,
                         PayoutRatio = analysis.PayoutRatio,
@@ -333,6 +352,7 @@ namespace FinanceApi.Services
                     Sector = c.Sector,
                     SafetyScore = c.SafetyScore,
                     SafetyRating = c.SafetyRating,
+                    CurrentPrice = c.CurrentPrice,
                     DividendYield = c.DividendYield,
                     PayoutRatio = c.PayoutRatio,
                     DividendGrowthRate = c.DividendGrowthRate,
@@ -340,6 +360,206 @@ namespace FinanceApi.Services
                     LastUpdated = c.LastUpdated,
                     IsFromCache = true
                 }).ToList();
+        }
+
+        public async Task<object?> GetHistoricalChartDataAsync(string symbol)
+        {
+            try
+            {
+                _logger.LogInformation($"📊 Fetching historical chart data for {symbol}");
+
+                // Get cached analysis from database
+                var cachedAnalysis = await _dbContext.DividendModels
+                    .Include(d => d.DividendPayments)
+                    .Include(d => d.YearlyDividends)
+                    .FirstOrDefaultAsync(d => d.Symbol == symbol);
+
+                // If not cached, analyze first
+                if (cachedAnalysis == null)
+                {
+                    _logger.LogInformation($"No cached data for {symbol}, analyzing first...");
+                    var analysis = await GetDividendAnalysisAsync(symbol, forceRefresh: false, preferYahoo: false);
+                    if (analysis == null)
+                    {
+                        return null;
+                    }
+
+                    // Reload from DB after analysis
+                    cachedAnalysis = await _dbContext.DividendModels
+                        .Include(d => d.DividendPayments)
+                        .Include(d => d.YearlyDividends)
+                        .FirstOrDefaultAsync(d => d.Symbol == symbol);
+
+                    if (cachedAnalysis == null)
+                    {
+                        return null;
+                    }
+                }
+
+                // Use cached data - prefer YearlyDividends if DividendPayments is empty
+                var currentEps = cachedAnalysis.EPS ?? 0;
+                var currentDividendYield = cachedAnalysis.DividendYield ?? 0;
+                var currentPayoutRatio = cachedAnalysis.PayoutRatio ?? 0;
+                var annualDividend = cachedAnalysis.DividendPerShare ?? 0;
+
+                // Get annual dividends from YearlyDividends table (primary source)
+                var annualDividends = cachedAnalysis.YearlyDividends
+                    .Where(y => y.TotalDividend > 0)
+                    .Select(y => new
+                    {
+                        year = y.Year,
+                        totalAmount = y.TotalDividend,
+                        paymentCount = y.PaymentCount
+                    })
+                    .OrderBy(d => d.year)
+                    .ToList();
+
+                // Calculate dividend growth rate year-over-year
+                var dividendGrowth = new List<object>();
+                const decimal MIN_DIVIDEND_THRESHOLD = 0.10m; // Minimum dividend for reliable growth calculation
+                const decimal MAX_GROWTH_RATE = 200m; // Cap unrealistic growth rates at 200%
+
+                for (int i = 1; i < annualDividends.Count; i++)
+                {
+                    var prev = annualDividends[i - 1];
+                    var curr = annualDividends[i];
+
+                    decimal? growthRate = null;
+                    string? note = null;
+
+                    // Only calculate growth if previous year had meaningful dividend
+                    if (prev.totalAmount >= MIN_DIVIDEND_THRESHOLD)
+                    {
+                        growthRate = ((curr.totalAmount - prev.totalAmount) / prev.totalAmount) * 100;
+
+                        // Cap extreme growth rates and add explanatory note
+                        if (growthRate > MAX_GROWTH_RATE)
+                        {
+                            note = "Capped from " + Math.Round(growthRate.Value, 0) + "%";
+                            growthRate = MAX_GROWTH_RATE;
+                        }
+                        else if (growthRate < -MAX_GROWTH_RATE)
+                        {
+                            note = "Capped from " + Math.Round(growthRate.Value, 0) + "%";
+                            growthRate = -MAX_GROWTH_RATE;
+                        }
+                    }
+                    else
+                    {
+                        // Previous year dividend too small for meaningful calculation
+                        note = "Previous year dividend too low ($" + Math.Round(prev.totalAmount, 2) + ")";
+                    }
+
+                    dividendGrowth.Add(new
+                    {
+                        year = curr.year,
+                        growthRate = growthRate.HasValue ? Math.Round(growthRate.Value, 2) : (decimal?)null,
+                        amount = curr.totalAmount,
+                        previousAmount = prev.totalAmount,
+                        note = note
+                    });
+                }
+
+                // Calculate payout ratio history using YEARLY EPS (not just current EPS)
+                // This provides accurate payout ratios for each historical year
+                var payoutRatioHistory = new List<object>();
+                const decimal MIN_EPS_THRESHOLD = 0.10m; // Avoid garbage data from tiny EPS
+                const decimal MAX_PAYOUT_RATIO = 200m; // Cap unrealistic ratios
+
+                foreach (var div in annualDividends.TakeLast(5))
+                {
+                    // Use year-specific EPS for accurate payout ratios
+                    var yearlyData = cachedAnalysis.YearlyDividends.FirstOrDefault(y => y.Year == div.year);
+                    var yearEps = yearlyData?.AnnualEPS ?? currentEps;
+
+                    // Only calculate if EPS is reasonable
+                    if (yearEps >= MIN_EPS_THRESHOLD)
+                    {
+                        var ratio = (div.totalAmount / (decimal)yearEps) * 100;
+
+                        // Cap extreme payout ratios
+                        string? note = null;
+                        if (ratio > MAX_PAYOUT_RATIO)
+                        {
+                            note = $"Capped from {Math.Round(ratio, 0)}%";
+                            ratio = MAX_PAYOUT_RATIO;
+                        }
+
+                        payoutRatioHistory.Add(new
+                        {
+                            year = div.year,
+                            payoutRatio = Math.Round(ratio, 2),
+                            dividendPerShare = div.totalAmount,
+                            eps = Math.Round((decimal)yearEps, 2),
+                            note = note
+                        });
+                    }
+                    else
+                    {
+                        // EPS too small or unavailable
+                        payoutRatioHistory.Add(new
+                        {
+                            year = div.year,
+                            payoutRatio = (decimal?)null,
+                            dividendPerShare = div.totalAmount,
+                            eps = (decimal?)null,
+                            note = yearEps > 0 ? $"EPS too low (${Math.Round((decimal)yearEps, 2)})" : "EPS not available"
+                        });
+                    }
+                }
+
+                var chartData = new
+                {
+                    symbol = symbol,
+                    currentMetrics = new
+                    {
+                        currentPrice = cachedAnalysis.CurrentPrice,
+                        dividendYield = currentDividendYield,
+                        annualDividend = annualDividend,
+                        payoutRatio = currentPayoutRatio,
+                        trailingEps = currentEps
+                    },
+                    charts = new
+                    {
+                        // Chart 1: Dividend Payment History (bar chart)
+                        dividendHistory = annualDividends.Select(d => new
+                        {
+                            year = d.year,
+                            amount = Math.Round(d.totalAmount, 2),
+                            payments = d.paymentCount
+                        }).ToList(),
+
+                        // Chart 2: Dividend Growth Trend (line chart)
+                        dividendGrowth = dividendGrowth,
+
+                        // Chart 3: Payout Ratio Trend (line chart)
+                        payoutRatioTrend = payoutRatioHistory,
+
+                        // Chart 4: EPS vs Dividends (dual-line chart with year-specific EPS)
+                        epsVsDividends = annualDividends.Select(d =>
+                        {
+                            // Use year-specific EPS from YearlyDividends table
+                            var yearlyData = cachedAnalysis.YearlyDividends.FirstOrDefault(y => y.Year == d.year);
+                            var yearEps = yearlyData?.AnnualEPS ?? currentEps;
+
+                            return new
+                            {
+                                year = d.year,
+                                dividend = Math.Round(d.totalAmount, 2),
+                                eps = yearEps >= MIN_EPS_THRESHOLD ? Math.Round((decimal)yearEps, 2) : (decimal?)null
+                            };
+                        }).ToList()
+                    }
+                };
+
+                _logger.LogInformation($"✅ Successfully fetched chart data for {symbol}");
+                return chartData;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"❌ Error fetching chart data for {symbol}: {ex.Message}");
+                return null;
+            }
         }
 
         // API fetch methods (same as before)
@@ -478,7 +698,7 @@ namespace FinanceApi.Services
             }
         }
 
-        private async Task<decimal?> FetchYahooFinanceCurrentPriceAsync(string symbol)
+        public async Task<decimal?> FetchYahooFinanceCurrentPriceAsync(string symbol)
         {
             try
             {
@@ -550,7 +770,8 @@ namespace FinanceApi.Services
                 Symbol = symbol,
                 CompanyName = overview["Name"]?.ToString() ?? symbol,
                 Sector = overview["Sector"]?.ToString() ?? "Unknown",
-                Industry = overview["Industry"]?.ToString() ?? "Unknown"
+                Industry = overview["Industry"]?.ToString() ?? "Unknown",
+                CurrentPrice = currentPrice ?? 0
             };
 
             // Parse raw values from API
@@ -645,7 +866,7 @@ namespace FinanceApi.Services
                 var currentYear = yearlyTotals[i].Total;
                 if (previousYear > 0)
                 {
-                    var growth = ((currentYear - previousYear) / previousYear) * 100;
+                    var growth = ((currentYear - previousYear) / previousYear);
                     growthRates.Add(growth);
                 }
             }
@@ -723,6 +944,97 @@ namespace FinanceApi.Services
 
             return string.Join("; ", recommendations);
         }
+
+        #region Python Script Execution
+
+        /// <summary>
+        /// Call Python script to fetch stock data from Yahoo Finance
+        /// Automatically tries .TO suffix for Canadian stocks if initial fetch fails
+        /// </summary>
+        public async Task<bool> FetchStockDataViaPythonAsync(string symbol)
+        {
+            try
+            {
+                var scriptPath = Path.Combine(Directory.GetCurrentDirectory(), "scripts", "update_stocks_from_yahoo.py");
+
+                if (!File.Exists(scriptPath))
+                {
+                    _logger.LogError($"Python script not found: {scriptPath}");
+                    return false;
+                }
+
+                // Try fetching with the symbol as-is
+                var success = await ExecutePythonScriptAsync(scriptPath, symbol);
+
+                // If failed and symbol doesn't contain a period, try adding .TO suffix for Canadian stocks
+                if (!success && !symbol.Contains('.'))
+                {
+                    _logger.LogInformation($"First attempt failed. Trying {symbol}.TO for Canadian exchange...");
+                    success = await ExecutePythonScriptAsync(scriptPath, $"{symbol}.TO");
+                }
+
+                return success;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error calling Python script: {ex.Message}");
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Execute Python script with given symbol
+        /// </summary>
+        private async Task<bool> ExecutePythonScriptAsync(string scriptPath, string symbol)
+        {
+            try
+            {
+                var processInfo = new ProcessStartInfo
+                {
+                    FileName = "python",
+                    Arguments = $"\"{scriptPath}\" {symbol}",
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                    WorkingDirectory = Directory.GetCurrentDirectory()
+                };
+
+                using var process = new Process { StartInfo = processInfo };
+
+                var output = new System.Text.StringBuilder();
+                var error = new System.Text.StringBuilder();
+
+                process.OutputDataReceived += (sender, e) => { if (e.Data != null) output.AppendLine(e.Data); };
+                process.ErrorDataReceived += (sender, e) => { if (e.Data != null) error.AppendLine(e.Data); };
+
+                process.Start();
+                process.BeginOutputReadLine();
+                process.BeginErrorReadLine();
+
+                await process.WaitForExitAsync();
+
+                if (process.ExitCode == 0)
+                {
+                    _logger.LogInformation($"✓ Python script succeeded for {symbol}");
+                    _logger.LogDebug(output.ToString());
+                    return true;
+                }
+                else
+                {
+                    _logger.LogWarning($"✗ Python script failed for {symbol}");
+                    _logger.LogDebug($"Error: {error}");
+                    return false;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning($"Error executing Python script for {symbol}: {ex.Message}");
+                return false;
+            }
+        }
+
+        #endregion
     }
 
     // Models
@@ -732,6 +1044,7 @@ namespace FinanceApi.Services
         public string CompanyName { get; set; } = string.Empty;
         public string Sector { get; set; } = string.Empty;
         public string Industry { get; set; } = string.Empty;
+        public decimal CurrentPrice { get; set; }
         public decimal? DividendYield { get; set; }
         public decimal? DividendPerShare { get; set; }
         public decimal? PayoutRatio { get; set; }

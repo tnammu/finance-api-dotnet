@@ -25,13 +25,13 @@ function StockCard({ stock, onDelete, onRefresh }) {
       </div>
 
       <div className="stock-price">
-        <span className="price">${stock.price?.toFixed(2)}</span>
+        <span className="price">${stock.currentPrice?.toFixed(2) || '0.00'}</span>
       </div>
 
       {stock.dividendYield && (
         <div className="stock-info">
           <span className="label">Dividend Yield:</span>
-          <span className="value">{(stock.dividendYield * 100).toFixed(2)}%</span>
+          <span className="value">{stock.dividendYield.toFixed(2)}%</span>
         </div>
       )}
 

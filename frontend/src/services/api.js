@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE_URL = 'http://localhost:5199/api';
+const API_BASE_URL = 'http://localhost:5000/api';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -23,13 +23,15 @@ export const stocksAPI = {
 // Dividends API
 export const dividendsAPI = {
   analyze: (symbol, refresh = false) => api.get(`/dividends/analyze/${symbol}?refresh=${refresh}`),
-  getCached: () => api.get('/dividends/cached'),
-  getHistory: (symbol) => api.get(`/dividends/history/${symbol}`),
-  screenCanadian: (symbols) => api.post('/dividends/screen/canadian', symbols),
-  getUsageToday: () => api.get('/dividends/usage/today'),
-  getUsageHistory: () => api.get('/dividends/usage/history'),
-  getStats: () => api.get('/dividends/stats'),
-  deleteCached: (symbol) => api.delete(`/dividends/cached/${symbol}`),
+  add: (symbol) => api.post('/dividends', { symbol }),
+  getCharts: (symbol) => api.get(`/dividends/${symbol}/charts`),
+  getCached: () => api.get('/dividends'),
+  getHistory: (symbol) => api.get(`/dividends/${symbol}/history`),
+  screenCanadian: (symbols) => api.post('/dividends/screen', symbols, { params: { market: 'canadian' } }),
+  getUsageToday: () => api.get('/dividends/api-usage'),
+  getUsageHistory: (days) => api.get('/dividends/api-usage', { params: { days } }),
+  getStats: () => api.get('/dividends/analytics'),
+  deleteCached: (symbol) => api.delete(`/dividends/${symbol}`),
 };
 
 export default api;

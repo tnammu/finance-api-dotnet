@@ -1,8 +1,8 @@
 ﻿using FinanceApi.Data;
-using FinanceApi.Model;
-using FinanceApi.Services;
+using FinanceApi.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Diagnostics;
 
 namespace FinanceApi.Controllers
 {
@@ -10,14 +10,12 @@ namespace FinanceApi.Controllers
     [Route("api/[controller]")]
     public class StocksController : ControllerBase
     {
-        private readonly FinanceDbcontext _context;
-        private readonly StockService _stockService;
+        private readonly DividendDbContext _context;
         private readonly ILogger<StocksController> _logger;
 
-        public StocksController(FinanceDbcontext context, StockService stockService, ILogger<StocksController> logger)
+        public StocksController(DividendDbContext context, ILogger<StocksController> logger)
         {
             _context = context;
-            _stockService = stockService;
             _logger = logger;
         }
 
@@ -28,7 +26,7 @@ namespace FinanceApi.Controllers
         [HttpGet]
         public async Task<ActionResult<IEnumerable<object>>> GetStocks()
         {
-            var stocks = await _context.Stocks.ToListAsync();
+            var stocks = await _context.DividendModels.ToListAsync();
 
             // Return stocks with indication of how old the data is
             var result = stocks.Select(s => new
@@ -36,7 +34,7 @@ namespace FinanceApi.Controllers
                 s.Id,
                 s.Symbol,
                 s.CompanyName,
-                s.Price,
+                s.CurrentPrice,
                 s.DividendYield,
                 s.LastUpdated,
                 MinutesOld = (int)(DateTime.UtcNow - s.LastUpdated).TotalMinutes,
@@ -50,9 +48,9 @@ namespace FinanceApi.Controllers
         /// Get a single stock by ID - returns from database
         /// </summary>
         [HttpGet("{id}")]
-        public async Task<ActionResult<Stock>> GetStock(int id)
+        public async Task<ActionResult<DividendModel>> GetStock(int id)
         {
-            var stock = await _context.Stocks.FindAsync(id);
+            var stock = await _context.DividendModels.FindAsync(id);
 
             if (stock == null)
             {
@@ -64,7 +62,7 @@ namespace FinanceApi.Controllers
                 stock.Id,
                 stock.Symbol,
                 stock.CompanyName,
-                stock.Price,
+                stock.CurrentPrice,
                 stock.DividendYield,
                 stock.LastUpdated,
                 MinutesOld = (int)(DateTime.UtcNow - stock.LastUpdated).TotalMinutes
@@ -80,39 +78,34 @@ namespace FinanceApi.Controllers
         {
             _logger.LogInformation($"Fetching live data for {symbol}");
 
-            var liveInfo = await _stockService.GetLiveStockInfoAsync(symbol);
+            // Use Python script to fetch/update stock data
+            var success = await FetchStockDataViaPython(symbol.ToUpper());
 
-            if (!liveInfo.Price.HasValue)
+            if (!success)
             {
                 return NotFound(new { message = $"Could not fetch live data for {symbol}" });
             }
 
-            // Check if stock exists in database
-            var stock = await _context.Stocks.FirstOrDefaultAsync(s => s.Symbol == symbol);
+            // Reload from database after Python script updates it
+            var stock = await _context.DividendModels
+                .Include(d => d.DividendPayments)
+                .Include(d => d.YearlyDividends)
+                .FirstOrDefaultAsync(s => s.Symbol == symbol.ToUpper());
 
-            if (stock != null)
+            if (stock == null)
             {
-                // Update existing stock
-                stock.Price = liveInfo.Price.Value;
-                stock.CompanyName = liveInfo.CompanyName ?? stock.CompanyName;
-                stock.DividendYield = liveInfo.DividendYield;
-                stock.LastUpdated = DateTime.UtcNow;
-
-                _context.Stocks.Update(stock);
-                await _context.SaveChangesAsync();
-
-                _logger.LogInformation($"Updated {symbol} in database");
+                return NotFound(new { message = $"Stock {symbol} was fetched but not saved to database" });
             }
 
             return Ok(new
             {
-                Symbol = symbol,
-                CompanyName = liveInfo.CompanyName,
-                Price = liveInfo.Price,
-                DividendYield = liveInfo.DividendYield,
-                FetchedAt = DateTime.UtcNow,
-                IsLive = liveInfo.IsLive,
-                Source = liveInfo.IsLive ? "Yahoo Finance (Live)" : "Cache"
+                stock.Symbol,
+                stock.CompanyName,
+                Price = stock.CurrentPrice,
+                stock.DividendYield,
+                FetchedAt = stock.LastUpdated,
+                IsLive = true,
+                Source = "Yahoo Finance (Python Script)"
             });
         }
 
@@ -123,7 +116,7 @@ namespace FinanceApi.Controllers
         [HttpPost("refresh")]
         public async Task<ActionResult<object>> RefreshAllStocks()
         {
-            var stocks = await _context.Stocks.ToListAsync();
+            var stocks = await _context.DividendModels.ToListAsync();
             var results = new List<object>();
             var successCount = 0;
             var failCount = 0;
@@ -135,22 +128,33 @@ namespace FinanceApi.Controllers
                     // Add small delay to avoid rate limiting (500ms between requests)
                     await Task.Delay(500);
 
-                    var liveInfo = await _stockService.GetLiveStockInfoAsync(stock.Symbol);
+                    // Use Python script to refresh stock data
+                    var success = await FetchStockDataViaPython(stock.Symbol);
 
-                    if (liveInfo.Price.HasValue)
+                    if (success)
                     {
-                        stock.Price = liveInfo.Price.Value;
-                        stock.CompanyName = liveInfo.CompanyName ?? stock.CompanyName;
-                        stock.DividendYield = liveInfo.DividendYield;
-                        stock.LastUpdated = DateTime.UtcNow;
-                        successCount++;
-
-                        results.Add(new
+                        // Reload updated stock from database
+                        var updatedStock = await _context.DividendModels.FirstOrDefaultAsync(s => s.Symbol == stock.Symbol);
+                        if (updatedStock != null)
                         {
-                            Symbol = stock.Symbol,
-                            Status = "Updated",
-                            Price = stock.Price
-                        });
+                            successCount++;
+                            results.Add(new
+                            {
+                                Symbol = updatedStock.Symbol,
+                                Status = "Updated",
+                                Price = updatedStock.CurrentPrice
+                            });
+                        }
+                        else
+                        {
+                            failCount++;
+                            results.Add(new
+                            {
+                                Symbol = stock.Symbol,
+                                Status = "Failed",
+                                Message = "Stock updated but not found in database"
+                            });
+                        }
                     }
                     else
                     {
@@ -194,41 +198,42 @@ namespace FinanceApi.Controllers
         [HttpPost("refresh/{id}")]
         public async Task<ActionResult<object>> RefreshStock(int id)
         {
-            var stock = await _context.Stocks.FindAsync(id);
+            var stock = await _context.DividendModels.FindAsync(id);
 
             if (stock == null)
             {
                 return NotFound(new { message = $"Stock with ID {id} not found" });
             }
 
-            var liveInfo = await _stockService.GetLiveStockInfoAsync(stock.Symbol);
+            // Use Python script to refresh stock data
+            var success = await FetchStockDataViaPython(stock.Symbol);
 
-            if (!liveInfo.Price.HasValue)
+            if (!success)
             {
                 return BadRequest(new { message = $"Could not fetch live data for {stock.Symbol}" });
             }
 
-            stock.Price = liveInfo.Price.Value;
-            stock.CompanyName = liveInfo.CompanyName ?? stock.CompanyName;
-            stock.DividendYield = liveInfo.DividendYield;
-            stock.LastUpdated = DateTime.UtcNow;
-
-            _context.Stocks.Update(stock);
-            await _context.SaveChangesAsync();
+            // Reload updated stock from database
+            var updatedStock = await _context.DividendModels.FindAsync(id);
+            if (updatedStock == null)
+            {
+                return StatusCode(500, new { message = $"Stock updated but not found in database" });
+            }
 
             return Ok(new
             {
                 Message = "Stock refreshed successfully",
                 Stock = new
                 {
-                    stock.Id,
-                    stock.Symbol,
-                    stock.CompanyName,
-                    stock.Price,
-                    stock.DividendYield,
-                    stock.LastUpdated
+                    updatedStock.Id,
+                    updatedStock.Symbol,
+                    updatedStock.CompanyName,
+                    updatedStock.CurrentPrice,
+                    updatedStock.DividendYield,
+                    updatedStock.LastUpdated
                 },
-                IsLive = liveInfo.IsLive
+                IsLive = true,
+                Source = "Yahoo Finance (Python Script)"
             });
         }
 
@@ -265,7 +270,7 @@ namespace FinanceApi.Controllers
                     }
 
                     // Check if already exists
-                    if (await _context.Stocks.AnyAsync(s => s.Symbol == symbol))
+                    if (await _context.DividendModels.AnyAsync(s => s.Symbol == symbol))
                     {
                         skipCount++;
                         results.Add(new
@@ -280,10 +285,10 @@ namespace FinanceApi.Controllers
                     // Add delay to respect rate limits (500ms = max 2 per second, 120 per minute)
                     await Task.Delay(500);
 
-                    // Fetch live data
-                    var liveInfo = await _stockService.GetLiveStockInfoAsync(symbol);
+                    // Fetch data using Python/Yahoo Finance
+                    var success = await FetchStockDataViaPython(symbol);
 
-                    if (!liveInfo.Price.HasValue)
+                    if (!success)
                     {
                         failCount++;
                         results.Add(new
@@ -295,17 +300,23 @@ namespace FinanceApi.Controllers
                         continue;
                     }
 
-                    var stock = new Stock
-                    {
-                        Symbol = symbol,
-                        CompanyName = liveInfo.CompanyName ?? symbol,
-                        Price = liveInfo.Price.Value,
-                        DividendYield = liveInfo.DividendYield,
-                        LastUpdated = DateTime.UtcNow
-                    };
+                    // Reload from database after Python script updates it
+                    var stock = await _context.DividendModels
+                        .Include(d => d.DividendPayments)
+                        .Include(d => d.YearlyDividends)
+                        .FirstOrDefaultAsync(s => s.Symbol == symbol);
 
-                    _context.Stocks.Add(stock);
-                    await _context.SaveChangesAsync();
+                    if (stock == null)
+                    {
+                        failCount++;
+                        results.Add(new
+                        {
+                            Symbol = symbol,
+                            Status = "Failed",
+                            Message = "Stock was fetched but not saved to database"
+                        });
+                        continue;
+                    }
 
                     successCount++;
                     results.Add(new
@@ -313,10 +324,10 @@ namespace FinanceApi.Controllers
                         Symbol = symbol,
                         Status = "Added",
                         CompanyName = stock.CompanyName,
-                        Price = stock.Price
+                        Price = stock.CurrentPrice
                     });
 
-                    _logger.LogInformation($"  ✓ Added {symbol} - ${stock.Price}");
+                    _logger.LogInformation($"  ✓ Added {symbol} - ${stock.CurrentPrice}");
                 }
                 catch (Exception ex)
                 {
@@ -343,11 +354,11 @@ namespace FinanceApi.Controllers
         }
 
         /// <summary>
-        /// Add a new stock by symbol
+        /// Add a new stock by symbol using Python/Yahoo Finance
         /// Example: POST /api/stocks with body { "symbol": "GOOGL" }
         /// </summary>
         [HttpPost]
-        public async Task<ActionResult<Stock>> AddStock([FromBody] AddStockRequest request)
+        public async Task<ActionResult<DividendModel>> AddStock([FromBody] AddStockRequest request)
         {
             if (string.IsNullOrWhiteSpace(request.Symbol))
             {
@@ -357,32 +368,41 @@ namespace FinanceApi.Controllers
             var symbol = request.Symbol.ToUpper().Trim();
 
             // Check if already exists
-            if (await _context.Stocks.AnyAsync(s => s.Symbol == symbol))
+            if (await _context.DividendModels.AnyAsync(s => s.Symbol == symbol))
             {
                 return Conflict(new { message = $"Stock {symbol} already exists" });
             }
 
-            // Fetch live data
-            var liveInfo = await _stockService.GetLiveStockInfoAsync(symbol);
+            // Fetch data using Python/Yahoo Finance (same as Dividend Analysis)
+            var success = await FetchStockDataViaPython(symbol);
 
-            if (!liveInfo.Price.HasValue)
+            if (!success)
             {
                 return BadRequest(new { message = $"Could not fetch data for {symbol}. Please verify the symbol is correct." });
             }
 
-            var stock = new Stock
+            // Reload from database after Python script updates it
+            var stock = await _context.DividendModels
+                .Include(d => d.DividendPayments)
+                .Include(d => d.YearlyDividends)
+                .FirstOrDefaultAsync(s => s.Symbol == symbol);
+
+            if (stock == null)
             {
-                Symbol = symbol,
-                CompanyName = liveInfo.CompanyName ?? symbol,
-                Price = liveInfo.Price.Value,
-                DividendYield = liveInfo.DividendYield,
-                LastUpdated = DateTime.UtcNow
-            };
+                return StatusCode(500, new { message = $"Stock {symbol} was fetched but not saved to database" });
+            }
 
-            _context.Stocks.Add(stock);
-            await _context.SaveChangesAsync();
-
-            return CreatedAtAction(nameof(GetStock), new { id = stock.Id }, stock);
+            // Return simplified response (avoid circular reference issues with navigation properties)
+            return CreatedAtAction(nameof(GetStock), new { id = stock.Id }, new
+            {
+                stock.Id,
+                stock.Symbol,
+                stock.CompanyName,
+                stock.CurrentPrice,
+                stock.DividendYield,
+                stock.LastUpdated,
+                Message = "Stock added successfully"
+            });
         }
 
         /// <summary>
@@ -391,14 +411,14 @@ namespace FinanceApi.Controllers
         [HttpDelete("{id}")]
         public async Task<ActionResult> DeleteStock(int id)
         {
-            var stock = await _context.Stocks.FindAsync(id);
+            var stock = await _context.DividendModels.FindAsync(id);
 
             if (stock == null)
             {
                 return NotFound(new { message = $"Stock with ID {id} not found" });
             }
 
-            _context.Stocks.Remove(stock);
+            _context.DividendModels.Remove(stock);
             await _context.SaveChangesAsync();
 
             return Ok(new { message = $"Stock {stock.Symbol} deleted successfully" });
@@ -411,7 +431,7 @@ namespace FinanceApi.Controllers
         [HttpGet("export/csv")]
         public async Task<IActionResult> ExportToCsv()
         {
-            var stocks = await _context.Stocks.OrderBy(s => s.Symbol).ToListAsync();
+            var stocks = await _context.DividendModels.OrderBy(s => s.Symbol).ToListAsync();
 
             var csv = new System.Text.StringBuilder();
 
@@ -426,7 +446,7 @@ namespace FinanceApi.Controllers
 
                 csv.AppendLine($"{stock.Symbol}," +
                               $"\"{stock.CompanyName}\"," +
-                              $"{stock.Price:F2}," +
+                              $"{stock.CurrentPrice:F2}," +
                               $"{dividendYield}," +
                               $"{stock.LastUpdated:yyyy-MM-dd HH:mm:ss}," +
                               $"{minutesOld}");
@@ -436,6 +456,93 @@ namespace FinanceApi.Controllers
             var bytes = System.Text.Encoding.UTF8.GetBytes(csv.ToString());
 
             return File(bytes, "text/csv", fileName);
+        }
+
+        /// <summary>
+        /// Call Python script to fetch stock data from Yahoo Finance
+        /// Automatically tries .TO suffix for Canadian stocks if initial fetch fails
+        /// </summary>
+        private async Task<bool> FetchStockDataViaPython(string symbol)
+        {
+            try
+            {
+                var scriptPath = Path.Combine(Directory.GetCurrentDirectory(), "scripts", "update_stocks_from_yahoo.py");
+
+                if (!System.IO.File.Exists(scriptPath))
+                {
+                    _logger.LogError($"Python script not found: {scriptPath}");
+                    return false;
+                }
+
+                // Try fetching with the symbol as-is
+                var success = await ExecutePythonScript(scriptPath, symbol);
+
+                // If failed and symbol doesn't contain a period, try adding .TO suffix for Canadian stocks
+                if (!success && !symbol.Contains('.'))
+                {
+                    _logger.LogInformation($"First attempt failed. Trying {symbol}.TO for Canadian exchange...");
+                    success = await ExecutePythonScript(scriptPath, $"{symbol}.TO");
+                }
+
+                return success;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error calling Python script: {ex.Message}");
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Execute Python script with given symbol
+        /// </summary>
+        private async Task<bool> ExecutePythonScript(string scriptPath, string symbol)
+        {
+            try
+            {
+                var processInfo = new ProcessStartInfo
+                {
+                    FileName = "python",
+                    Arguments = $"\"{scriptPath}\" {symbol}",
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                    WorkingDirectory = Directory.GetCurrentDirectory()
+                };
+
+                using var process = new Process { StartInfo = processInfo };
+
+                var output = new System.Text.StringBuilder();
+                var error = new System.Text.StringBuilder();
+
+                process.OutputDataReceived += (sender, e) => { if (e.Data != null) output.AppendLine(e.Data); };
+                process.ErrorDataReceived += (sender, e) => { if (e.Data != null) error.AppendLine(e.Data); };
+
+                process.Start();
+                process.BeginOutputReadLine();
+                process.BeginErrorReadLine();
+
+                await process.WaitForExitAsync();
+
+                if (process.ExitCode == 0)
+                {
+                    _logger.LogInformation($"✓ Python script succeeded for {symbol}");
+                    _logger.LogDebug(output.ToString());
+                    return true;
+                }
+                else
+                {
+                    _logger.LogWarning($"✗ Python script failed for {symbol}");
+                    _logger.LogDebug($"Error: {error}");
+                    return false;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning($"Error executing Python script for {symbol}: {ex.Message}");
+                return false;
+            }
         }
     }
 

@@ -23,6 +23,7 @@ namespace FinanceApi.Models
         public string Industry { get; set; } = string.Empty;
 
         // Current Metrics
+        public decimal CurrentPrice { get; set; }
         public decimal? DividendYield { get; set; }
         public decimal? DividendPerShare { get; set; }
         public decimal? PayoutRatio { get; set; }
@@ -74,6 +75,7 @@ namespace FinanceApi.Models
 
     /// <summary>
     /// Yearly dividend totals for quick access
+    /// Includes annual EPS for accurate payout ratio calculation
     /// </summary>
     public class YearlyDividendSummary
     {
@@ -90,6 +92,9 @@ namespace FinanceApi.Models
         public int Year { get; set; }
         public decimal TotalDividend { get; set; }
         public int PaymentCount { get; set; }
+
+        // Annual EPS for accurate payout ratio calculation
+        public decimal? AnnualEPS { get; set; }
 
         // Navigation property
         [ForeignKey("DividendModelId")]

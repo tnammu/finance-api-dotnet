@@ -78,11 +78,11 @@ function Dashboard() {
   };
 
   const handleExportCSV = () => {
-    const API_BASE_URL = 'http://localhost:5199/api';
+    const API_BASE_URL = 'http://localhost:5000/api';
     window.open(`${API_BASE_URL}/stocks/export/csv`, '_blank');
   };
 
-  const totalValue = stocks.reduce((sum, stock) => sum + (stock.price || 0), 0);
+  const totalValue = stocks.reduce((sum, stock) => sum + (stock.currentPrice || 0), 0);
   const staleCount = stocks.filter(s => s.isStale).length;
 
   if (loading) {

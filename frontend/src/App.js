@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { BrowserRouter as Router } from 'react-router-dom';
 import Dashboard from './components/Dashboard';
 import DividendAnalysis from './components/DividendAnalysis';
-import ApiUsage from './components/ApiUsage';
 import './App.css';
 
 function App() {
@@ -26,19 +25,12 @@ function App() {
             >
               Dividend Analysis
             </button>
-            <button
-              className={activeTab === 'usage' ? 'active' : ''}
-              onClick={() => setActiveTab('usage')}
-            >
-              API Usage
-            </button>
           </nav>
         </header>
 
         <main className="main">
           {activeTab === 'stocks' && <Dashboard />}
           {activeTab === 'dividends' && <DividendAnalysis />}
-          {activeTab === 'usage' && <ApiUsage />}
         </main>
       </div>
     </Router>

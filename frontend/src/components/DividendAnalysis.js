@@ -1,15 +1,27 @@
 import React, { useState, useEffect } from 'react';
 import { dividendsAPI } from '../services/api';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import DividendCharts from './DividendCharts';
 import './DividendAnalysis.css';
 
 function DividendAnalysis() {
   const [symbol, setSymbol] = useState('');
+  const [exchange, setExchange] = useState('US');
   const [analysis, setAnalysis] = useState(null);
   const [cachedStocks, setCachedStocks] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [stats, setStats] = useState(null);
+
+  // Filters and sorting
+  const [filters, setFilters] = useState({
+    yieldMin: '',
+    priceMax: '',
+    sector: 'all',
+    safetyRating: 'all',
+    minYears: ''
+  });
+  const [sortConfig, setSortConfig] = useState({ key: 'safetyScore', direction: 'desc' });
 
   useEffect(() => {
     loadCachedStocks();
@@ -34,7 +46,7 @@ function DividendAnalysis() {
     }
   };
 
-  const handleAnalyze = async (symbolToAnalyze = symbol, refresh = false) => {
+  const handleAnalyze = async (symbolToAnalyze = symbol, refresh = false, useExchange = exchange) => {
     if (!symbolToAnalyze.trim()) {
       setError('Please enter a stock symbol');
       return;
@@ -43,7 +55,14 @@ function DividendAnalysis() {
     try {
       setLoading(true);
       setError(null);
-      const response = await dividendsAPI.analyze(symbolToAnalyze.toUpperCase(), refresh);
+
+      // Add exchange suffix if not already present
+      let finalSymbol = symbolToAnalyze.toUpperCase();
+      if (useExchange === 'CA' && !finalSymbol.includes('.')) {
+        finalSymbol = `${finalSymbol}.TO`;
+      }
+
+      const response = await dividendsAPI.analyze(finalSymbol, refresh);
       setAnalysis(response.data);
       setSymbol('');
       await loadCachedStocks();
@@ -61,6 +80,25 @@ function DividendAnalysis() {
 
   const handleRefreshCached = async (cachedSymbol) => {
     await handleAnalyze(cachedSymbol, true);
+  };
+
+  const handleDeleteCached = async (cachedSymbol) => {
+    if (!window.confirm(`Delete ${cachedSymbol} from dividend analysis?`)) {
+      return;
+    }
+
+    try {
+      await dividendsAPI.deleteCached(cachedSymbol);
+      await loadCachedStocks();
+      await loadStats();
+
+      // Clear analysis if currently viewing this stock
+      if (analysis && analysis.symbol === cachedSymbol) {
+        setAnalysis(null);
+      }
+    } catch (err) {
+      setError(`Failed to delete ${cachedSymbol}: ` + (err.response?.data?.error || err.message));
+    }
   };
 
   const getSafetyColor = (rating) => {
@@ -89,6 +127,66 @@ function DividendAnalysis() {
     window.open(`${API_BASE_URL}/dividends/export/usage/csv`, '_blank');
   };
 
+  // Filter and sort stocks
+  const getFilteredAndSortedStocks = () => {
+    let filtered = [...cachedStocks];
+
+    // Apply filters
+    if (filters.yieldMin) {
+      filtered = filtered.filter(s => s.dividendYield && s.dividendYield >= parseFloat(filters.yieldMin));
+    }
+    if (filters.priceMax) {
+      filtered = filtered.filter(s => s.currentPrice && s.currentPrice <= parseFloat(filters.priceMax));
+    }
+    if (filters.sector !== 'all') {
+      filtered = filtered.filter(s => s.sector === filters.sector);
+    }
+    if (filters.safetyRating !== 'all') {
+      filtered = filtered.filter(s => s.safetyRating === filters.safetyRating);
+    }
+    if (filters.minYears) {
+      filtered = filtered.filter(s => s.consecutiveYears >= parseInt(filters.minYears));
+    }
+
+    // Apply sorting
+    if (sortConfig.key) {
+      filtered.sort((a, b) => {
+        let aVal = a[sortConfig.key];
+        let bVal = b[sortConfig.key];
+
+        // Handle null/undefined
+        if (aVal == null) return 1;
+        if (bVal == null) return -1;
+
+        if (typeof aVal === 'string') {
+          aVal = aVal.toLowerCase();
+          bVal = bVal.toLowerCase();
+        }
+
+        if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
+        if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
+        return 0;
+      });
+    }
+
+    return filtered;
+  };
+
+  const handleSort = (key) => {
+    setSortConfig({
+      key,
+      direction: sortConfig.key === key && sortConfig.direction === 'asc' ? 'desc' : 'asc'
+    });
+  };
+
+  const getSortIcon = (key) => {
+    if (sortConfig.key !== key) return '⇅';
+    return sortConfig.direction === 'asc' ? '↑' : '↓';
+  };
+
+  // Get unique sectors for filter dropdown
+  const uniqueSectors = [...new Set(cachedStocks.map(s => s.sector).filter(Boolean))];
+
   return (
     <div className="dividend-analysis">
       <div className="card">
@@ -98,14 +196,32 @@ function DividendAnalysis() {
         </p>
 
         <div className="search-section">
-          <div style={{ display: 'flex', gap: '0.75rem' }}>
+          <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+            <select
+              value={exchange}
+              onChange={(e) => setExchange(e.target.value)}
+              disabled={loading}
+              style={{
+                padding: '0.75rem',
+                borderRadius: '8px',
+                border: '2px solid #e1e8ed',
+                fontSize: '1rem',
+                backgroundColor: 'white',
+                cursor: 'pointer',
+                minWidth: '120px'
+              }}
+            >
+              <option value="US">🇺🇸 US</option>
+              <option value="CA">🇨🇦 Canada</option>
+            </select>
             <input
               type="text"
               value={symbol}
               onChange={(e) => setSymbol(e.target.value)}
-              placeholder="Enter stock symbol (e.g., AAPL, TD.TO)"
+              placeholder={exchange === 'CA' ? 'e.g., XEQT, VFV, TD' : 'e.g., AAPL, MSFT, JNJ'}
               onKeyPress={(e) => e.key === 'Enter' && handleAnalyze()}
               disabled={loading}
+              style={{ flex: 1 }}
             />
             <button
               className="primary"
@@ -115,6 +231,11 @@ function DividendAnalysis() {
               {loading ? 'Analyzing...' : 'Analyze'}
             </button>
           </div>
+          {exchange === 'CA' && (
+            <p style={{ marginTop: '0.5rem', fontSize: '0.875rem', color: '#7f8c8d' }}>
+              Canadian stocks will automatically use Toronto Stock Exchange (.TO)
+            </p>
+          )}
         </div>
 
         {error && <div className="error">{error}</div>}
@@ -172,7 +293,7 @@ function DividendAnalysis() {
       {cachedStocks.length > 0 && (
         <div className="card">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-            <h3>Recently Analyzed ({cachedStocks.length})</h3>
+            <h3>My Portfolio ({getFilteredAndSortedStocks().length} of {cachedStocks.length})</h3>
             <div style={{ display: 'flex', gap: '0.5rem' }}>
               <button className="secondary" onClick={handleExportDividends} style={{ fontSize: '0.875rem', padding: '0.5rem 1rem' }}>
                 Export All
@@ -182,43 +303,273 @@ function DividendAnalysis() {
               </button>
             </div>
           </div>
-          <div className="cached-stocks">
-            {cachedStocks.map((stock, idx) => (
-              <div key={idx} className="cached-stock-item">
-                <div>
-                  <strong>{stock.symbol}</strong>
-                  <p>{stock.companyName}</p>
-                  <span className="badge" style={{ background: getSafetyColor(stock.safetyRating) + '20', color: getSafetyColor(stock.safetyRating) }}>
-                    {stock.safetyRating}
-                  </span>
-                </div>
-                <div>
-                  <div className="metric">
-                    <span>Yield:</span>
-                    <strong>{stock.dividendYield ? (stock.dividendYield * 100).toFixed(2) + '%' : 'N/A'}</strong>
-                  </div>
-                  <div className="metric">
-                    <span>Score:</span>
-                    <strong style={{ color: getSafetyColor(stock.safetyRating) }}>
-                      {stock.safetyScore.toFixed(1)}
-                    </strong>
-                  </div>
-                  <div className="metric">
-                    <span>Years:</span>
-                    <strong>{stock.consecutiveYears}</strong>
-                  </div>
-                </div>
-                <div className="cached-actions">
-                  <button className="primary" onClick={() => handleSelectCached(stock.symbol)}>
-                    View
-                  </button>
-                  <button className="secondary" onClick={() => handleRefreshCached(stock.symbol)}>
-                    Refresh
-                  </button>
-                </div>
-              </div>
-            ))}
+
+          {/* Filters */}
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
+            gap: '1rem',
+            marginBottom: '1.5rem',
+            padding: '1rem',
+            background: '#f8f9fa',
+            borderRadius: '8px'
+          }}>
+            <div>
+              <label style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.5rem', color: '#555' }}>Min Yield %</label>
+              <input
+                type="number"
+                step="0.5"
+                placeholder="e.g., 3"
+                value={filters.yieldMin}
+                onChange={(e) => setFilters({...filters, yieldMin: e.target.value})}
+                style={{
+                  width: '100%',
+                  padding: '0.5rem',
+                  border: '1px solid #ddd',
+                  borderRadius: '4px',
+                  fontSize: '0.875rem'
+                }}
+              />
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.5rem', color: '#555' }}>Max Price $</label>
+              <input
+                type="number"
+                step="10"
+                placeholder="e.g., 200"
+                value={filters.priceMax}
+                onChange={(e) => setFilters({...filters, priceMax: e.target.value})}
+                style={{
+                  width: '100%',
+                  padding: '0.5rem',
+                  border: '1px solid #ddd',
+                  borderRadius: '4px',
+                  fontSize: '0.875rem'
+                }}
+              />
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.5rem', color: '#555' }}>Sector</label>
+              <select
+                value={filters.sector}
+                onChange={(e) => setFilters({...filters, sector: e.target.value})}
+                style={{
+                  width: '100%',
+                  padding: '0.5rem',
+                  border: '1px solid #ddd',
+                  borderRadius: '4px',
+                  fontSize: '0.875rem',
+                  background: 'white'
+                }}
+              >
+                <option value="all">All Sectors</option>
+                {uniqueSectors.map(sector => (
+                  <option key={sector} value={sector}>{sector}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.5rem', color: '#555' }}>Safety Rating</label>
+              <select
+                value={filters.safetyRating}
+                onChange={(e) => setFilters({...filters, safetyRating: e.target.value})}
+                style={{
+                  width: '100%',
+                  padding: '0.5rem',
+                  border: '1px solid #ddd',
+                  borderRadius: '4px',
+                  fontSize: '0.875rem',
+                  background: 'white'
+                }}
+              >
+                <option value="all">All Ratings</option>
+                <option value="Excellent">Excellent</option>
+                <option value="Very Good">Very Good</option>
+                <option value="Good">Good</option>
+                <option value="Fair">Fair</option>
+                <option value="Below Average">Below Average</option>
+                <option value="Poor">Poor</option>
+              </select>
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.5rem', color: '#555' }}>Min Years</label>
+              <input
+                type="number"
+                placeholder="e.g., 10"
+                value={filters.minYears}
+                onChange={(e) => setFilters({...filters, minYears: e.target.value})}
+                style={{
+                  width: '100%',
+                  padding: '0.5rem',
+                  border: '1px solid #ddd',
+                  borderRadius: '4px',
+                  fontSize: '0.875rem'
+                }}
+              />
+            </div>
+            <div style={{ display: 'flex', alignItems: 'flex-end' }}>
+              <button
+                onClick={() => setFilters({ yieldMin: '', priceMax: '', sector: 'all', safetyRating: 'all', minYears: '' })}
+                style={{
+                  width: '100%',
+                  padding: '0.5rem',
+                  background: '#6c757d',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  fontSize: '0.875rem'
+                }}
+              >
+                Clear Filters
+              </button>
+            </div>
           </div>
+
+          {/* Sortable Table */}
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{
+              width: '100%',
+              borderCollapse: 'collapse',
+              fontSize: '0.9rem'
+            }}>
+              <thead>
+                <tr style={{ background: '#f8f9fa', borderBottom: '2px solid #dee2e6' }}>
+                  <th onClick={() => handleSort('symbol')} style={{ padding: '1rem', textAlign: 'left', cursor: 'pointer', userSelect: 'none' }}>
+                    Symbol {getSortIcon('symbol')}
+                  </th>
+                  <th onClick={() => handleSort('companyName')} style={{ padding: '1rem', textAlign: 'left', cursor: 'pointer', userSelect: 'none' }}>
+                    Company {getSortIcon('companyName')}
+                  </th>
+                  <th onClick={() => handleSort('sector')} style={{ padding: '1rem', textAlign: 'left', cursor: 'pointer', userSelect: 'none' }}>
+                    Sector {getSortIcon('sector')}
+                  </th>
+                  <th onClick={() => handleSort('currentPrice')} style={{ padding: '1rem', textAlign: 'right', cursor: 'pointer', userSelect: 'none' }}>
+                    Price {getSortIcon('currentPrice')}
+                  </th>
+                  <th onClick={() => handleSort('dividendYield')} style={{ padding: '1rem', textAlign: 'right', cursor: 'pointer', userSelect: 'none' }}>
+                    Yield {getSortIcon('dividendYield')}
+                  </th>
+                  <th onClick={() => handleSort('payoutRatio')} style={{ padding: '1rem', textAlign: 'right', cursor: 'pointer', userSelect: 'none' }}>
+                    Payout {getSortIcon('payoutRatio')}
+                  </th>
+                  <th onClick={() => handleSort('dividendGrowthRate')} style={{ padding: '1rem', textAlign: 'right', cursor: 'pointer', userSelect: 'none' }}>
+                    Growth {getSortIcon('dividendGrowthRate')}
+                  </th>
+                  <th onClick={() => handleSort('consecutiveYears')} style={{ padding: '1rem', textAlign: 'right', cursor: 'pointer', userSelect: 'none' }}>
+                    Years {getSortIcon('consecutiveYears')}
+                  </th>
+                  <th onClick={() => handleSort('safetyScore')} style={{ padding: '1rem', textAlign: 'right', cursor: 'pointer', userSelect: 'none' }}>
+                    Score {getSortIcon('safetyScore')}
+                  </th>
+                  <th style={{ padding: '1rem', textAlign: 'center' }}>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {getFilteredAndSortedStocks().map((stock, idx) => (
+                  <tr key={idx} style={{
+                    borderBottom: '1px solid #e9ecef',
+                    transition: 'background 0.2s',
+                    background: idx % 2 === 0 ? 'white' : '#f8f9fa'
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.background = '#e3f2fd'}
+                  onMouseLeave={(e) => e.currentTarget.style.background = idx % 2 === 0 ? 'white' : '#f8f9fa'}
+                  >
+                    <td style={{ padding: '0.75rem', fontWeight: '600', color: '#2c3e50' }}>{stock.symbol}</td>
+                    <td style={{ padding: '0.75rem', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {stock.companyName}
+                    </td>
+                    <td style={{ padding: '0.75rem' }}>
+                      <span style={{
+                        padding: '0.25rem 0.5rem',
+                        background: '#e9ecef',
+                        borderRadius: '4px',
+                        fontSize: '0.8rem'
+                      }}>
+                        {stock.sector || 'N/A'}
+                      </span>
+                    </td>
+                    <td style={{ padding: '0.75rem', textAlign: 'right' }}>
+                      ${stock.currentPrice ? stock.currentPrice.toFixed(2) : 'N/A'}
+                    </td>
+                    <td style={{ padding: '0.75rem', textAlign: 'right', fontWeight: '600', color: '#27ae60' }}>
+                      {stock.dividendYield ? stock.dividendYield.toFixed(2) + '%' : 'N/A'}
+                    </td>
+                    <td style={{ padding: '0.75rem', textAlign: 'right' }}>
+                      {stock.payoutRatio ? stock.payoutRatio.toFixed(1) + '%' : 'N/A'}
+                    </td>
+                    <td style={{ padding: '0.75rem', textAlign: 'right', color: stock.dividendGrowthRate > 0 ? '#27ae60' : '#e74c3c' }}>
+                      {stock.dividendGrowthRate ? stock.dividendGrowthRate.toFixed(1) + '%' : 'N/A'}
+                    </td>
+                    <td style={{ padding: '0.75rem', textAlign: 'right' }}>{stock.consecutiveYears}</td>
+                    <td style={{ padding: '0.75rem', textAlign: 'right' }}>
+                      <span style={{
+                        padding: '0.25rem 0.5rem',
+                        background: getSafetyColor(stock.safetyRating) + '20',
+                        color: getSafetyColor(stock.safetyRating),
+                        borderRadius: '4px',
+                        fontWeight: '600'
+                      }}>
+                        {stock.safetyScore.toFixed(1)}
+                      </span>
+                    </td>
+                    <td style={{ padding: '0.75rem' }}>
+                      <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center' }}>
+                        <button
+                          onClick={() => handleSelectCached(stock.symbol)}
+                          style={{
+                            padding: '0.4rem 0.8rem',
+                            background: '#3498db',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '4px',
+                            cursor: 'pointer',
+                            fontSize: '0.8rem'
+                          }}
+                        >
+                          View
+                        </button>
+                        <button
+                          onClick={() => handleRefreshCached(stock.symbol)}
+                          style={{
+                            padding: '0.4rem 0.8rem',
+                            background: '#95a5a6',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '4px',
+                            cursor: 'pointer',
+                            fontSize: '0.8rem'
+                          }}
+                        >
+                          ↻
+                        </button>
+                        <button
+                          onClick={() => handleDeleteCached(stock.symbol)}
+                          style={{
+                            padding: '0.4rem 0.8rem',
+                            background: '#e74c3c',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '4px',
+                            cursor: 'pointer',
+                            fontSize: '0.8rem'
+                          }}
+                        >
+                          ×
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {getFilteredAndSortedStocks().length === 0 && (
+            <div style={{ padding: '2rem', textAlign: 'center', color: '#6c757d' }}>
+              No stocks match your filters
+            </div>
+          )}
         </div>
       )}
 
@@ -249,13 +600,13 @@ function DividendAnalysis() {
               <div className="stat-card">
                 <h4>Dividend Yield</h4>
                 <div className="value">
-                  {analysis.currentMetrics.dividendYield ? (analysis.currentMetrics.dividendYield * 100).toFixed(2) + '%' : 'N/A'}
+                  {analysis.currentMetrics.dividendYield ? Number(analysis.currentMetrics.dividendYield).toFixed(2) + '%' : 'N/A'}
                 </div>
               </div>
               <div className="stat-card">
                 <h4>Payout Ratio</h4>
                 <div className="value">
-                  {analysis.currentMetrics.payoutRatio ? (analysis.currentMetrics.payoutRatio * 100).toFixed(1) + '%' : 'N/A'}
+                  {analysis.currentMetrics.payoutRatio ? Number(analysis.currentMetrics.payoutRatio).toFixed(1) + '%' : 'N/A (ETF)'}
                 </div>
               </div>
               <div className="stat-card">
@@ -265,7 +616,7 @@ function DividendAnalysis() {
               <div className="stat-card">
                 <h4>Growth Rate</h4>
                 <div className="value">
-                  {analysis.historicalAnalysis.dividendGrowthRate ? (analysis.historicalAnalysis.dividendGrowthRate * 100).toFixed(1) + '%' : 'N/A'}
+                  {analysis.historicalAnalysis.dividendGrowthRate ? Number(analysis.historicalAnalysis.dividendGrowthRate).toFixed(1) + '%' : 'N/A'}
                 </div>
               </div>
             </div>
@@ -305,6 +656,13 @@ function DividendAnalysis() {
                   <Line type="monotone" dataKey="amount" stroke="#27ae60" name="Dividend Amount ($)" />
                 </LineChart>
               </ResponsiveContainer>
+            </div>
+          )}
+
+          {/* New Advanced Charts Section */}
+          {analysis && (
+            <div className="advanced-charts-section">
+              <DividendCharts symbol={analysis.symbol} />
             </div>
           )}
         </>
