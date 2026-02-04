@@ -13,10 +13,30 @@ function PerformanceDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [period, setPeriod] = useState(1);
+  const [customPeriod, setCustomPeriod] = useState('');
 
   useEffect(() => {
     loadPortfolioPerformance();
   }, [period]);
+
+  const handlePeriodChange = (years) => {
+    // Validate: only integers between 1-20
+    const yearNum = parseInt(years, 10);
+    if (!isNaN(yearNum) && yearNum >= 1 && yearNum <= 20) {
+      setPeriod(yearNum);
+      setCustomPeriod('');
+    }
+  };
+
+  const handleCustomPeriodSubmit = (e) => {
+    e.preventDefault();
+    const yearNum = parseInt(customPeriod, 10);
+    if (!isNaN(yearNum) && yearNum >= 1 && yearNum <= 20) {
+      setPeriod(yearNum);
+    } else {
+      alert('Please enter a number between 1 and 20');
+    }
+  };
 
   const loadPortfolioPerformance = async () => {
     try {
@@ -134,22 +154,41 @@ function PerformanceDashboard() {
         <div className="period-selector">
           <button
             className={period === 1 ? 'active' : ''}
-            onClick={() => setPeriod(1)}
+            onClick={() => handlePeriodChange(1)}
           >
             1 Year
           </button>
           <button
             className={period === 3 ? 'active' : ''}
-            onClick={() => setPeriod(3)}
+            onClick={() => handlePeriodChange(3)}
           >
             3 Years
           </button>
           <button
             className={period === 5 ? 'active' : ''}
-            onClick={() => setPeriod(5)}
+            onClick={() => handlePeriodChange(5)}
           >
             5 Years
           </button>
+          <button
+            className={period === 10 ? 'active' : ''}
+            onClick={() => handlePeriodChange(10)}
+          >
+            10 Years
+          </button>
+          <form onSubmit={handleCustomPeriodSubmit} className="custom-period-form">
+            <input
+              type="number"
+              min="1"
+              max="20"
+              step="1"
+              placeholder="Custom (1-20)"
+              value={customPeriod}
+              onChange={(e) => setCustomPeriod(e.target.value)}
+              className="custom-period-input"
+            />
+            <button type="submit" className="custom-period-button">Go</button>
+          </form>
         </div>
       </div>
 

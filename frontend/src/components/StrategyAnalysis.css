@@ -1,0 +1,654 @@
+.strategy-analysis {
+  padding: 20px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.strategy-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 30px;
+  flex-wrap: wrap;
+  gap: 20px;
+}
+
+.strategy-title h2 {
+  margin: 0;
+  font-size: 28px;
+  color: #1e293b;
+}
+
+.strategy-title p {
+  margin: 5px 0 0 0;
+  color: #64748b;
+  font-size: 16px;
+}
+
+.strategy-controls {
+  display: flex;
+  gap: 15px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.control-group {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.control-group label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+}
+
+.control-group input,
+.control-group select {
+  padding: 8px 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font-size: 14px;
+  min-width: 100px;
+}
+
+.btn-refresh {
+  padding: 10px 20px;
+  background: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: background 0.2s;
+}
+
+.btn-refresh:hover {
+  background: #2563eb;
+}
+
+/* Stock Performance Overview */
+.stock-performance-overview {
+  margin-bottom: 30px;
+  padding: 25px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 12px;
+  color: white;
+  box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+}
+
+.stock-performance-overview h3 {
+  margin: 0 0 5px 0;
+  font-size: 24px;
+  color: white;
+}
+
+.stock-performance-overview p {
+  margin: 0 0 20px 0;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.performance-metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 15px;
+}
+
+.perf-metric-card {
+  padding: 18px;
+  background: white;
+  border-radius: 10px;
+  text-align: center;
+  transition: transform 0.2s;
+}
+
+.perf-metric-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+}
+
+.perf-metric-card.highlight-card {
+  border: 2px solid rgba(102, 126, 234, 0.2);
+}
+
+.perf-metric-card.main-highlight {
+  background: linear-gradient(135deg, #f6f8ff 0%, #f0f4ff 100%);
+  border: 3px solid #667eea;
+  box-shadow: 0 8px 24px rgba(102, 126, 234, 0.3);
+}
+
+.perf-metric-label {
+  font-size: 11px;
+  color: #64748b;
+  font-weight: 600;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+  letter-spacing: 0.5px;
+}
+
+.perf-metric-value {
+  font-size: 28px;
+  font-weight: 700;
+  color: #1e293b;
+  margin-bottom: 4px;
+}
+
+.perf-metric-value-large {
+  font-size: 40px;
+  font-weight: 800;
+  margin-bottom: 4px;
+  line-height: 1;
+}
+
+.perf-metric-sublabel {
+  font-size: 12px;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.perf-metric-date {
+  font-size: 11px;
+  color: #94a3b8;
+  margin-top: 4px;
+}
+
+/* Strategy Selector */
+.strategy-selector {
+  margin-bottom: 30px;
+}
+
+.strategy-selector h3 {
+  font-size: 20px;
+  margin-bottom: 15px;
+  color: #1e293b;
+}
+
+.strategy-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 15px;
+}
+
+.strategy-card {
+  padding: 15px;
+  border: 2px solid #e2e8f0;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: white;
+}
+
+.strategy-card:hover {
+  border-color: #3b82f6;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.1);
+  transform: translateY(-2px);
+}
+
+.strategy-card.active {
+  border-color: #3b82f6;
+  background: #eff6ff;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.2);
+}
+
+.strategy-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 10px;
+}
+
+.strategy-card h4 {
+  margin: 0;
+  font-size: 16px;
+  color: #1e293b;
+}
+
+.risk-badge {
+  padding: 3px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  color: white;
+}
+
+.strategy-description {
+  font-size: 13px;
+  color: #64748b;
+  margin: 10px 0;
+  line-height: 1.4;
+}
+
+.strategy-category {
+  font-size: 11px;
+  color: #94a3b8;
+  font-weight: 600;
+  text-transform: uppercase;
+  margin-top: 10px;
+}
+
+.strategy-performance {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.performance-return {
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.best-badge {
+  padding: 3px 8px;
+  background: #fbbf24;
+  color: #78350f;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+/* Strategy Details */
+.strategy-details {
+  margin-top: 30px;
+}
+
+.strategy-metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 15px;
+  margin-bottom: 30px;
+}
+
+.metric-card {
+  padding: 15px;
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  text-align: center;
+}
+
+.metric-label {
+  font-size: 12px;
+  color: #64748b;
+  font-weight: 600;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+
+.metric-value {
+  font-size: 24px;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.metric-value.highlight {
+  color: #3b82f6;
+}
+
+.metric-value.success {
+  color: #22c55e;
+}
+
+.metric-value.danger {
+  color: #ef4444;
+}
+
+/* Calculator */
+.strategy-calculator {
+  padding: 20px;
+  background: #f8fafc;
+  border-radius: 10px;
+  margin-bottom: 30px;
+}
+
+.strategy-calculator h3 {
+  margin: 0 0 10px 0;
+  font-size: 18px;
+  color: #1e293b;
+}
+
+.strategy-calculator p {
+  margin: 0 0 15px 0;
+  color: #64748b;
+  font-size: 14px;
+}
+
+.btn-calculate {
+  padding: 12px 24px;
+  background: #10b981;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 14px;
+  transition: background 0.2s;
+}
+
+.btn-calculate:hover:not(:disabled) {
+  background: #059669;
+}
+
+.btn-calculate:disabled {
+  background: #9ca3af;
+  cursor: not-allowed;
+}
+
+.calculator-results {
+  margin-top: 20px;
+}
+
+.calculator-table {
+  width: 100%;
+  background: white;
+  border-radius: 8px;
+  overflow: hidden;
+  border-collapse: collapse;
+}
+
+.calculator-table th,
+.calculator-table td {
+  padding: 12px;
+  text-align: right;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.calculator-table th {
+  background: #f1f5f9;
+  font-weight: 600;
+  font-size: 13px;
+  color: #475569;
+  text-transform: uppercase;
+}
+
+.calculator-table td {
+  font-size: 14px;
+  color: #1e293b;
+}
+
+.calculator-table tr:last-child td {
+  border-bottom: none;
+}
+
+/* Recent Trades */
+.recent-trades {
+  margin-bottom: 30px;
+}
+
+.recent-trades h3 {
+  font-size: 18px;
+  margin-bottom: 15px;
+  color: #1e293b;
+}
+
+.trades-table {
+  width: 100%;
+  background: white;
+  border-radius: 8px;
+  overflow: hidden;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.trades-table th,
+.trades-table td {
+  padding: 10px;
+  text-align: left;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.trades-table th {
+  background: #f1f5f9;
+  font-weight: 600;
+  color: #475569;
+  text-transform: uppercase;
+  font-size: 11px;
+}
+
+.trades-table td {
+  color: #1e293b;
+}
+
+.trade-type {
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 4px;
+  display: inline-block;
+}
+
+.trade-type.buy {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.trade-type.sell {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.trade-reason {
+  font-size: 12px;
+  color: #64748b;
+}
+
+/* Monthly Stats */
+.monthly-stats {
+  margin-bottom: 30px;
+  padding: 20px;
+  background: white;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+}
+
+.monthly-stats h3 {
+  font-size: 18px;
+  margin: 0 0 20px 0;
+  color: #1e293b;
+}
+
+.best-months {
+  margin-top: 15px;
+  padding: 15px;
+  background: #dcfce7;
+  border-radius: 8px;
+  color: #166534;
+  font-size: 14px;
+}
+
+.best-months strong {
+  font-weight: 700;
+}
+
+/* Strategy Comparison */
+.strategy-comparison,
+.winrate-comparison {
+  margin-bottom: 30px;
+  padding: 20px;
+  background: white;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+}
+
+.strategy-comparison h3,
+.winrate-comparison h3 {
+  font-size: 18px;
+  margin: 0 0 20px 0;
+  color: #1e293b;
+}
+
+/* Valuation Analysis */
+.valuation-analysis {
+  margin-bottom: 30px;
+  padding: 20px;
+  background: white;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+}
+
+.valuation-analysis h3 {
+  font-size: 18px;
+  color: #1e293b;
+}
+
+.valuation-metric-card {
+  padding: 15px;
+  background: #f8fafc;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  text-align: center;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.valuation-metric-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.valuation-metric-label {
+  font-size: 11px;
+  color: #64748b;
+  font-weight: 600;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+  letter-spacing: 0.5px;
+}
+
+.valuation-metric-value {
+  font-size: 28px;
+  font-weight: 700;
+  color: #1e293b;
+  margin-bottom: 6px;
+}
+
+.valuation-metric-sublabel {
+  font-size: 12px;
+  color: #64748b;
+  font-weight: 500;
+}
+
+/* Risk Disclosure */
+.risk-disclosure {
+  margin-top: 30px;
+  padding: 20px;
+  background: #fef2f2;
+  border: 2px solid #fecaca;
+  border-radius: 10px;
+}
+
+.risk-disclosure h3 {
+  margin: 0 0 15px 0;
+  font-size: 18px;
+  color: #991b1b;
+}
+
+.risk-disclosure ul {
+  margin: 0;
+  padding-left: 20px;
+  color: #991b1b;
+}
+
+.risk-disclosure li {
+  margin-bottom: 8px;
+  line-height: 1.5;
+}
+
+/* Loading and Error States */
+.strategy-placeholder,
+.strategy-loading,
+.strategy-error {
+  padding: 60px 20px;
+  text-align: center;
+  background: white;
+  border-radius: 10px;
+  border: 2px dashed #cbd5e1;
+}
+
+.strategy-placeholder h3,
+.strategy-loading p,
+.strategy-error h3 {
+  margin: 0 0 10px 0;
+  font-size: 20px;
+  color: #1e293b;
+}
+
+.strategy-placeholder p,
+.strategy-loading small,
+.strategy-error p {
+  margin: 0;
+  color: #64748b;
+}
+
+.loading-spinner {
+  margin: 0 auto 20px;
+  width: 40px;
+  height: 40px;
+  border: 4px solid #e2e8f0;
+  border-top-color: #3b82f6;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.strategy-error button {
+  margin-top: 15px;
+  padding: 10px 20px;
+  background: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.strategy-error button:hover {
+  background: #2563eb;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .strategy-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .strategy-controls {
+    width: 100%;
+  }
+
+  .performance-metrics {
+    grid-template-columns: 1fr;
+  }
+
+  .perf-metric-value-large {
+    font-size: 32px;
+  }
+
+  .strategy-cards {
+    grid-template-columns: 1fr;
+  }
+
+  .strategy-metrics {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .calculator-table,
+  .trades-table {
+    font-size: 11px;
+  }
+
+  .calculator-table th,
+  .calculator-table td,
+  .trades-table th,
+  .trades-table td {
+    padding: 8px 4px;
+  }
+}

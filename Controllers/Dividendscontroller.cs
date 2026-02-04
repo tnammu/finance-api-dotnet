@@ -42,7 +42,7 @@ namespace FinanceApi.Controllers
             {
                 _logger.LogInformation($"Fetching {symbol} using Python script...");
 
-                var success = await _dividendService.FetchStockDataViaPythonAsync(symbol);
+               var success = await _dividendService.FetchStockDataViaPythonAsync(symbol);
 
                 if (!success)
                 {
@@ -85,7 +85,7 @@ namespace FinanceApi.Controllers
                 {
                     return NotFound(new { error = $"Could not analyze {symbol}" });
                 }
-            }
+            }            
 
             // Return cached data
             return Ok(new
@@ -93,7 +93,7 @@ namespace FinanceApi.Controllers
                 symbol = cached.Symbol,
                 companyName = cached.CompanyName,
                 sector = cached.Sector,
-
+            
                 currentMetrics = new
                 {
                     currentprice = cached.CurrentPrice,
@@ -101,7 +101,10 @@ namespace FinanceApi.Controllers
                     dividendPerShare = cached.DividendPerShare,
                     payoutRatio = cached.PayoutRatio,
                     eps = cached.EPS,
-                    beta = cached.Beta
+                    beta = cached.Beta,
+                    payoutPolicy = cached.PayoutPolicy,
+                    dividendAllocationPct = cached.DividendAllocationPct,
+                    reinvestmentAllocationPct = cached.ReinvestmentAllocationPct,
                 },
 
                 historicalAnalysis = new
@@ -228,10 +231,26 @@ namespace FinanceApi.Controllers
                     currentPrice = c.CurrentPrice,
                     dividendYield = c.DividendYield,
                     payoutRatio = c.PayoutRatio,
+                    payoutPolicy = c.PayoutPolicy,
+                    dividendAllocationPct = c.DividendAllocationPct,
+                    reinvestmentAllocationPct = c.ReinvestmentAllocationPct,
                     dividendGrowthRate = c.DividendGrowthRate,
                     safetyScore = c.SafetyScore,
                     safetyRating = c.SafetyRating,
                     consecutiveYears = c.ConsecutiveYearsOfPayments,
+                    growthScore = c.GrowthScore,
+                    dailyVolatility = c.DailyVolatility,
+                    sectorRank = c.SectorRank,
+                    week52High = c.Week52High,
+                    week52Low = c.Week52Low,
+                    month1Low = c.Month1Low,
+                    month3Low = c.Month3Low,
+                    supportLevel1 = c.SupportLevel1,
+                    supportLevel1Volume = c.SupportLevel1Volume,
+                    supportLevel2 = c.SupportLevel2,
+                    supportLevel2Volume = c.SupportLevel2Volume,
+                    supportLevel3 = c.SupportLevel3,
+                    supportLevel3Volume = c.SupportLevel3Volume,
                     lastUpdated = c.LastUpdated,
                     daysOld = (DateTime.UtcNow - c.LastUpdated).TotalDays
                 }).ToList()
@@ -381,7 +400,7 @@ namespace FinanceApi.Controllers
         /// <summary>
         /// Delete cached dividend data for a stock (force fresh fetch next time)
         /// </summary>
-        [HttpDelete("{symbol}")]
+        [HttpDelete("cache/{symbol}")]
         public async Task<ActionResult<object>> DeleteDividendCache(string symbol)
         {
             symbol = symbol.ToUpper();
@@ -609,6 +628,105 @@ namespace FinanceApi.Controllers
             {
                 _logger.LogError($"Error deleting {symbol}: {ex.Message}");
                 return StatusCode(500, new { error = "Failed to delete stock" });
+            }
+        }
+
+        /// <summary>
+        /// Get top swing trading stocks for Canadian or US market
+        /// Scores based on: volatility, support levels, beta, growth, and price position
+        /// Example: GET /api/dividends/swing-trading/top?count=5&market=canadian
+        /// </summary>
+        [HttpGet("swing-trading/top")]
+        public async Task<ActionResult<object>> GetTopSwingTradingStocks(
+            [FromQuery] int count = 5,
+            [FromQuery] string market = "canadian")
+        {
+            try
+            {
+                var result = await _dividendService.GetTopSwingTradingStocksAsync(count, market);
+
+                if (!result.TopStocks.Any())
+                {
+                    return Ok(new
+                    {
+                        message = $"No {market} stocks found in database",
+                        recommendation = "Import stocks first using POST /api/dividends/screen with Canadian symbols"
+                    });
+                }
+
+                return Ok(new
+                {
+                    market = result.Market,
+                    totalAnalyzed = result.TotalAnalyzed,
+                    generatedAt = result.GeneratedAt,
+                    scoringFactors = new
+                    {
+                        volatility = "Moderate volatility (1.5-3%) preferred for swing trading",
+                        supportLevels = "Stocks near support levels score higher",
+                        beta = "Beta 0.8-1.5 preferred (not too stable, not too volatile)",
+                        growthScore = "Higher growth momentum stocks preferred",
+                        pricePosition = "Stocks closer to 52-week low (potential upside)"
+                    },
+                    topStocks = result.TopStocks
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error calculating swing trading stocks");
+                return StatusCode(500, new { error = "Failed to calculate swing trading recommendations" });
+            }
+        }
+
+        /// <summary>
+        /// Bulk import all TSX stocks from exchange listing
+        /// This triggers a Python script that fetches all TSX listings and imports them
+        /// Example: POST /api/dividends/bulk-import/tsx
+        /// </summary>
+        [HttpPost("bulk-import/tsx")]
+        public ActionResult BulkImportTSXStocks()
+        {
+            try
+            {
+                _logger.LogInformation("Starting TSX bulk import...");
+
+                var scriptPath = Path.Combine(Directory.GetCurrentDirectory(), "scripts", "bulk_import_tsx_stocks.py");
+
+                if (!System.IO.File.Exists(scriptPath))
+                {
+                    return NotFound(new { error = $"Bulk import script not found: {scriptPath}" });
+                }
+
+                // Execute Python script in background
+                var processInfo = new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = "python",
+                    Arguments = $"\"{scriptPath}\"",
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                };
+
+                var process = System.Diagnostics.Process.Start(processInfo);
+                if (process == null)
+                {
+                    return StatusCode(500, new { error = "Failed to start bulk import process" });
+                }
+
+                _logger.LogInformation("Bulk import process started");
+
+                return Ok(new
+                {
+                    message = "TSX bulk import started",
+                    status = "running",
+                    startedAt = DateTime.UtcNow,
+                    note = "Import is running in the background. Check logs for progress."
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error starting bulk import");
+                return StatusCode(500, new { error = $"Failed to start bulk import: {ex.Message}" });
             }
         }
     }

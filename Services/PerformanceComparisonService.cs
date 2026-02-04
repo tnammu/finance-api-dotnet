@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Net.Http;
+using System.Text.Json;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using FinanceApi.Data;
@@ -380,6 +382,72 @@ namespace FinanceApi.Services
             }
 
             return maxDrawdown * 100;
+        }
+
+        /// <summary>
+        /// Run Python script to fetch portfolio performance data
+        /// </summary>
+        public async Task<JsonElement?> GetPythonPortfolioPerformanceAsync(int period)
+        {
+            var scriptPath = Path.Combine(Directory.GetCurrentDirectory(), "scripts", "sp500_performance_comparison.py");
+
+            if (!File.Exists(scriptPath))
+            {
+                _logger.LogError($"Python script not found: {scriptPath}");
+                return null;
+            }
+
+            var processInfo = new ProcessStartInfo
+            {
+                FileName = "python",
+                Arguments = $"\"{scriptPath}\" -p {period}",
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                WorkingDirectory = Path.Combine(Directory.GetCurrentDirectory(), "scripts")
+            };
+
+            using var process = Process.Start(processInfo);
+            if (process == null)
+            {
+                _logger.LogError("Failed to start Python process");
+                return null;
+            }
+
+            var output = await process.StandardOutput.ReadToEndAsync();
+            var error = await process.StandardError.ReadToEndAsync();
+            await process.WaitForExitAsync();
+
+            if (process.ExitCode != 0)
+            {
+                _logger.LogError($"Python script failed: {error}");
+                return null;
+            }
+
+            if (string.IsNullOrWhiteSpace(output))
+            {
+                _logger.LogWarning("No performance data returned from Python script");
+                return null;
+            }
+
+            // Validate output is valid JSON before parsing
+            output = output.Trim();
+            if (!output.StartsWith("{") && !output.StartsWith("["))
+            {
+                _logger.LogError($"Python script returned non-JSON output: {output.Substring(0, Math.Min(100, output.Length))}");
+                return null;
+            }
+
+            try
+            {
+                return JsonSerializer.Deserialize<JsonElement>(output);
+            }
+            catch (JsonException ex)
+            {
+                _logger.LogError($"Failed to parse Python script output as JSON: {ex.Message}");
+                return null;
+            }
         }
 
         private class PriceData

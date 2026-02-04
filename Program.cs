@@ -43,7 +43,14 @@ builder.Services.AddDbContext<DividendDbContext>(options =>
 builder.Services.AddHttpClient<DividendAnalysisService>();
 builder.Services.AddHttpClient();
 builder.Services.AddScoped<PerformanceComparisonService>();
-// LiveStockSeeder removed - not used (was dependent on removed StockService)
+builder.Services.AddScoped<EtfService>();
+builder.Services.AddScoped<SP500Service>();
+builder.Services.AddScoped<GrowthStockService>();
+builder.Services.AddScoped<StrategyService>();
+builder.Services.AddScoped<SectorAnalysisService>();
+builder.Services.AddScoped<CommodityService>();
+builder.Services.AddScoped<TrendingStockService>();
+builder.Services.AddScoped<StocksService>();
 
 // Add Swagger
 builder.Services.AddEndpointsApiExplorer();

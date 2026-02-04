@@ -164,6 +164,9 @@ namespace FinanceApi.Services
                     SafetyScore = cached.SafetyScore,
                     SafetyRating = cached.SafetyRating,
                     Recommendation = cached.Recommendation,
+                    PayoutPolicy = cached.PayoutPolicy,
+                    DividendAllocationPct = cached.DividendAllocationPct,
+                    ReinvestmentAllocationPct = cached.ReinvestmentAllocationPct,
                     DividendHistory = cached.DividendPayments
                         .Select(p => new DividendPayment
                         {
@@ -222,6 +225,9 @@ namespace FinanceApi.Services
                     existing.Recommendation = analysis.Recommendation;
                     existing.LastUpdated = DateTime.UtcNow;
                     existing.ApiCallsUsed = analysis.ApiCallsUsed;
+                    existing.PayoutPolicy = analysis.PayoutPolicy;
+                    existing.DividendAllocationPct = analysis.DividendAllocationPct;
+                    existing.ReinvestmentAllocationPct = analysis.ReinvestmentAllocationPct;
 
                     // Clear old dividend records
                     _dbContext.DividendPayments.RemoveRange(existing.DividendPayments);
@@ -250,7 +256,10 @@ namespace FinanceApi.Services
                         Recommendation = analysis.Recommendation,
                         FetchedAt = DateTime.UtcNow,
                         LastUpdated = DateTime.UtcNow,
-                        ApiCallsUsed = analysis.ApiCallsUsed
+                        ApiCallsUsed = analysis.ApiCallsUsed,
+                        PayoutPolicy = analysis.PayoutPolicy,
+                        DividendAllocationPct = analysis.DividendAllocationPct,
+                        ReinvestmentAllocationPct = analysis.ReinvestmentAllocationPct
                     };
 
                     _dbContext.DividendModels.Add(existing);
@@ -342,6 +351,15 @@ namespace FinanceApi.Services
                 .Include(d => d.YearlyDividends)
                 .ToListAsync();
 
+            // Calculate sector ranks
+            await CalculateSectorRanksAsync();
+
+            // Reload to get updated ranks
+            cached = await _dbContext.DividendModels
+                .Include(d => d.DividendPayments)
+                .Include(d => d.YearlyDividends)
+                .ToListAsync();
+
             // Sort in memory and convert to DividendAnalysis
             return cached
                 .OrderByDescending(c => c.SafetyScore)
@@ -358,8 +376,60 @@ namespace FinanceApi.Services
                     DividendGrowthRate = c.DividendGrowthRate,
                     ConsecutiveYearsOfPayments = c.ConsecutiveYearsOfPayments,
                     LastUpdated = c.LastUpdated,
+                    PayoutPolicy = c.PayoutPolicy,
+                    GrowthScore = c.GrowthScore,
+                    DailyVolatility = c.DailyVolatility,
+                    SectorRank = c.SectorRank,
+                    Week52High = c.Week52High,
+                    Week52Low = c.Week52Low,
+                    Month1Low = c.Month1Low,
+                    Month3Low = c.Month3Low,
+                    SupportLevel1 = c.SupportLevel1,
+                    SupportLevel1Volume = c.SupportLevel1Volume,
+                    SupportLevel2 = c.SupportLevel2,
+                    SupportLevel2Volume = c.SupportLevel2Volume,
+                    SupportLevel3 = c.SupportLevel3,
+                    SupportLevel3Volume = c.SupportLevel3Volume,
                     IsFromCache = true
                 }).ToList();
+        }
+
+        /// <summary>
+        /// Calculate and update sector ranks for all stocks
+        /// Rank is based on SafetyScore within each sector (1 = best in sector)
+        /// </summary>
+        public async Task CalculateSectorRanksAsync()
+        {
+            try
+            {
+                var allStocks = await _dbContext.DividendModels.ToListAsync();
+
+                // Group by sector
+                var stocksBySector = allStocks
+                    .Where(s => !string.IsNullOrEmpty(s.Sector))
+                    .GroupBy(s => s.Sector);
+
+                foreach (var sectorGroup in stocksBySector)
+                {
+                    // Order by SafetyScore descending within each sector
+                    var rankedStocks = sectorGroup
+                        .OrderByDescending(s => s.SafetyScore)
+                        .ToList();
+
+                    // Assign ranks (1-based)
+                    for (int i = 0; i < rankedStocks.Count; i++)
+                    {
+                        rankedStocks[i].SectorRank = i + 1;
+                    }
+                }
+
+                await _dbContext.SaveChangesAsync();
+                _logger.LogInformation($"✓ Updated sector ranks for {allStocks.Count} stocks");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error calculating sector ranks: {ex.Message}");
+            }
         }
 
         public async Task<object?> GetHistoricalChartDataAsync(string symbol)
@@ -401,6 +471,7 @@ namespace FinanceApi.Services
                 var currentDividendYield = cachedAnalysis.DividendYield ?? 0;
                 var currentPayoutRatio = cachedAnalysis.PayoutRatio ?? 0;
                 var annualDividend = cachedAnalysis.DividendPerShare ?? 0;
+                var payoutPolicy = cachedAnalysis.PayoutPolicy ?? "Not ";
 
                 // Get annual dividends from YearlyDividends table (primary source)
                 var annualDividends = cachedAnalysis.YearlyDividends
@@ -831,6 +902,7 @@ namespace FinanceApi.Services
             analysis.Recommendation = GenerateRecommendation(analysis);
             analysis.FetchedAt = DateTime.UtcNow;
             analysis.LastUpdated = DateTime.UtcNow;
+            analysis.PayoutPolicy = overview["PayoutPolicy"]?.ToString() ?? "Not Available";
 
             return analysis;
         }
@@ -944,6 +1016,220 @@ namespace FinanceApi.Services
 
             return string.Join("; ", recommendations);
         }
+
+        #region Swing Trading Analysis
+
+        /// <summary>
+        /// Get top swing trading stocks based on volatility, support levels, beta, and price position
+        /// </summary>
+        public async Task<SwingTradingResult> GetTopSwingTradingStocksAsync(int count = 5, string market = "canadian")
+        {
+            var allStocks = await _dbContext.DividendModels.ToListAsync();
+
+            // Filter by market (Canadian = .TO suffix)
+            var filteredStocks = market.ToLower() == "canadian"
+                ? allStocks.Where(s => s.Symbol.EndsWith(".TO")).ToList()
+                : allStocks.Where(s => !s.Symbol.Contains(".")).ToList();
+
+            if (!filteredStocks.Any())
+            {
+                return new SwingTradingResult
+                {
+                    Market = market,
+                    TotalAnalyzed = 0,
+                    TopStocks = new List<SwingTradingStock>()
+                };
+            }
+
+            // Calculate swing trading score for each stock
+            var scoredStocks = filteredStocks
+                .Select(s => new
+                {
+                    Stock = s,
+                    SwingScore = CalculateSwingTradingScore(s),
+                    ScoreBreakdown = GetSwingScoreBreakdown(s)
+                })
+                .Where(x => x.SwingScore > 0)
+                .OrderByDescending(x => x.SwingScore)
+                .Take(count)
+                .ToList();
+
+            var topStocks = scoredStocks.Select((x, index) => new SwingTradingStock
+            {
+                Rank = index + 1,
+                Symbol = x.Stock.Symbol,
+                CompanyName = x.Stock.CompanyName,
+                Sector = x.Stock.Sector,
+                SwingScore = Math.Round(x.SwingScore, 2),
+                CurrentPrice = x.Stock.CurrentPrice,
+                DailyVolatility = x.Stock.DailyVolatility,
+                Beta = x.Stock.Beta,
+                Week52High = x.Stock.Week52High,
+                Week52Low = x.Stock.Week52Low,
+                PriceVs52WeekRange = CalculatePricePosition(x.Stock),
+                SupportLevel1 = x.Stock.SupportLevel1,
+                DistanceToSupport1 = CalculateDistanceToSupport(x.Stock),
+                SupportLevel2 = x.Stock.SupportLevel2,
+                GrowthScore = x.Stock.GrowthScore,
+                GrowthRating = x.Stock.GrowthRating,
+                RevenueGrowth = x.Stock.RevenueGrowth,
+                ScoreBreakdown = x.ScoreBreakdown,
+                Recommendation = GenerateSwingRecommendation(x.Stock)
+            }).ToList();
+
+            return new SwingTradingResult
+            {
+                Market = market,
+                TotalAnalyzed = filteredStocks.Count,
+                GeneratedAt = DateTime.UtcNow,
+                TopStocks = topStocks
+            };
+        }
+
+        private double CalculateSwingTradingScore(DividendModel stock)
+        {
+            double score = 0;
+            int factors = 0;
+
+            // 1. Volatility Score (0-25 points) - Moderate volatility is best for swing trading
+            if (stock.DailyVolatility.HasValue)
+            {
+                var vol = (double)stock.DailyVolatility.Value;
+                if (vol >= 1.5 && vol <= 3.0) score += 25; // Sweet spot
+                else if (vol >= 1.0 && vol < 1.5) score += 15; // Acceptable
+                else if (vol > 3.0 && vol <= 4.0) score += 15; // Higher risk but tradeable
+                else if (vol > 4.0) score += 5; // Too volatile
+                else score += 5; // Too stable
+                factors++;
+            }
+
+            // 2. Beta Score (0-20 points) - Beta 0.8-1.5 is ideal
+            if (stock.Beta.HasValue)
+            {
+                var beta = (double)stock.Beta.Value;
+                if (beta >= 0.8 && beta <= 1.5) score += 20;
+                else if (beta >= 0.5 && beta < 0.8) score += 12;
+                else if (beta > 1.5 && beta <= 2.0) score += 12;
+                else score += 5;
+                factors++;
+            }
+
+            // 3. Price Position Score (0-20 points) - Closer to 52-week low = more upside
+            if (stock.Week52High > 0 && stock.Week52Low > 0 && stock.CurrentPrice > 0)
+            {
+                var range = stock.Week52High - stock.Week52Low;
+                if (range > 0)
+                {
+                    var position = (stock.CurrentPrice - stock.Week52Low) / range;
+                    if (position <= 0.3m) score += 20; // Near 52-week low
+                    else if (position <= 0.5m) score += 15;
+                    else if (position <= 0.7m) score += 10;
+                    else score += 5; // Near 52-week high
+                    factors++;
+                }
+            }
+
+            // 4. Support Level Proximity (0-20 points) - Closer to support = better entry
+            if (stock.SupportLevel1.HasValue && stock.SupportLevel1 > 0 && stock.CurrentPrice > 0)
+            {
+                var distanceToSupport = (double)((stock.CurrentPrice - stock.SupportLevel1.Value) / stock.CurrentPrice * 100);
+                if (distanceToSupport >= 0 && distanceToSupport <= 5) score += 20; // Very close to support
+                else if (distanceToSupport > 5 && distanceToSupport <= 10) score += 15;
+                else if (distanceToSupport > 10 && distanceToSupport <= 15) score += 10;
+                else score += 5;
+                factors++;
+            }
+
+            // 5. Growth Score (0-15 points) - Momentum matters
+            if (stock.GrowthScore > 0)
+            {
+                if (stock.GrowthScore >= 70) score += 15;
+                else if (stock.GrowthScore >= 50) score += 10;
+                else if (stock.GrowthScore >= 30) score += 7;
+                else score += 3;
+                factors++;
+            }
+
+            // Normalize to 100-point scale
+            return factors > 0 ? (score / factors) * (factors / 5.0) * 20 : 0;
+        }
+
+        private SwingScoreBreakdown GetSwingScoreBreakdown(DividendModel stock)
+        {
+            return new SwingScoreBreakdown
+            {
+                VolatilityScore = stock.DailyVolatility.HasValue
+                    ? (stock.DailyVolatility >= 1.5m && stock.DailyVolatility <= 3.0m ? "Optimal" :
+                       stock.DailyVolatility < 1.5m ? "Low" : "High")
+                    : "N/A",
+                BetaScore = stock.Beta.HasValue
+                    ? (stock.Beta >= 0.8m && stock.Beta <= 1.5m ? "Optimal" :
+                       stock.Beta < 0.8m ? "Low" : "High")
+                    : "N/A",
+                PricePosition = stock.Week52High > 0 && stock.Week52Low > 0
+                    ? (stock.CurrentPrice <= stock.Week52Low + (stock.Week52High - stock.Week52Low) * 0.3m ? "Near Low (Good)" :
+                       stock.CurrentPrice >= stock.Week52Low + (stock.Week52High - stock.Week52Low) * 0.7m ? "Near High" : "Mid-Range")
+                    : "N/A",
+                SupportProximity = stock.SupportLevel1.HasValue && stock.SupportLevel1 > 0
+                    ? $"{Math.Round((double)((stock.CurrentPrice - stock.SupportLevel1.Value) / stock.CurrentPrice * 100), 1)}% above support"
+                    : "N/A",
+                GrowthMomentum = stock.GrowthScore >= 70 ? "Strong" : stock.GrowthScore >= 50 ? "Moderate" : "Weak"
+            };
+        }
+
+        private double? CalculatePricePosition(DividendModel stock)
+        {
+            if (stock.Week52High > 0 && stock.Week52Low > 0 && stock.CurrentPrice > 0)
+            {
+                return Math.Round((double)((stock.CurrentPrice - stock.Week52Low) / (stock.Week52High - stock.Week52Low) * 100), 1);
+            }
+            return null;
+        }
+
+        private double? CalculateDistanceToSupport(DividendModel stock)
+        {
+            if (stock.SupportLevel1.HasValue && stock.SupportLevel1 > 0 && stock.CurrentPrice > 0)
+            {
+                return Math.Round((double)((stock.CurrentPrice - stock.SupportLevel1.Value) / stock.CurrentPrice * 100), 2);
+            }
+            return null;
+        }
+
+        private string GenerateSwingRecommendation(DividendModel stock)
+        {
+            var recommendations = new List<string>();
+
+            // Entry point recommendation
+            if (stock.SupportLevel1.HasValue && stock.SupportLevel1 > 0)
+            {
+                var distanceToSupport = (stock.CurrentPrice - stock.SupportLevel1.Value) / stock.CurrentPrice * 100;
+                if (distanceToSupport <= 5)
+                    recommendations.Add($"Near support at ${stock.SupportLevel1:F2} - potential entry point");
+                else
+                    recommendations.Add($"Watch for pullback to ${stock.SupportLevel1:F2} support level");
+            }
+
+            // Volatility comment
+            if (stock.DailyVolatility.HasValue)
+            {
+                if (stock.DailyVolatility >= 2.0m && stock.DailyVolatility <= 3.0m)
+                    recommendations.Add("Good volatility for 2-5 day swing trades");
+                else if (stock.DailyVolatility > 3.0m)
+                    recommendations.Add("High volatility - use tighter stop losses");
+            }
+
+            // Target based on 52-week range
+            if (stock.Week52High > 0 && stock.CurrentPrice > 0)
+            {
+                var potentialUpside = (stock.Week52High - stock.CurrentPrice) / stock.CurrentPrice * 100;
+                if (potentialUpside > 10)
+                    recommendations.Add($"Potential upside to 52-week high: {potentialUpside:F1}%");
+            }
+
+            return recommendations.Any() ? string.Join(". ", recommendations) : "Analyze further before trading";
+        }
+
+        #endregion
 
         #region Python Script Execution
 
@@ -1062,11 +1348,73 @@ namespace FinanceApi.Services
         public DateTime LastUpdated { get; set; }
         public int ApiCallsUsed { get; set; }
         public bool IsFromCache { get; set; }
+        public string PayoutPolicy { get; set; } = "Unknown"; // "Dividend Only", "Reinvestment Only", "Mixed", "None", "Unknown"
+        public decimal? DividendAllocationPct { get; set; }    // % of earnings paid as dividends (same as PayoutRatio)
+        public decimal? ReinvestmentAllocationPct { get; set; } // % of earnings reinvested (100 - PayoutRatio)
+        public decimal GrowthScore { get; set; }               // Growth score 0-100
+        public decimal? DailyVolatility { get; set; }          // Daily volatility percentage (30-day)
+        public int? SectorRank { get; set; }                   // Rank within sector (1 = best)
+
+        // Price Range Metrics (52-week)
+        public decimal? Week52High { get; set; }               // 52-week high price
+        public decimal? Week52Low { get; set; }                // 52-week low price
+        public decimal? Month1Low { get; set; }                // 1-month low price
+        public decimal? Month3Low { get; set; }                // 3-month low price
+
+        // Support Level Analysis
+        public decimal? SupportLevel1 { get; set; }            // Primary support level (highest volume)
+        public decimal? SupportLevel1Volume { get; set; }      // Volume at primary support
+        public decimal? SupportLevel2 { get; set; }            // Secondary support level
+        public decimal? SupportLevel2Volume { get; set; }      // Volume at secondary support
+        public decimal? SupportLevel3 { get; set; }            // Tertiary support level
+        public decimal? SupportLevel3Volume { get; set; }      // Volume at tertiary support
+
     }
 
     public class DividendPayment
     {
         public DateTime Date { get; set; }
         public decimal Amount { get; set; }
+    }
+
+    // Swing Trading DTOs
+    public class SwingTradingResult
+    {
+        public string Market { get; set; } = string.Empty;
+        public int TotalAnalyzed { get; set; }
+        public DateTime GeneratedAt { get; set; }
+        public List<SwingTradingStock> TopStocks { get; set; } = new();
+    }
+
+    public class SwingTradingStock
+    {
+        public int Rank { get; set; }
+        public string Symbol { get; set; } = string.Empty;
+        public string CompanyName { get; set; } = string.Empty;
+        public string Sector { get; set; } = string.Empty;
+        public double SwingScore { get; set; }
+        public decimal CurrentPrice { get; set; }
+        public decimal? DailyVolatility { get; set; }
+        public decimal? Beta { get; set; }
+        public decimal? Week52High { get; set; }
+        public decimal? Week52Low { get; set; }
+        public double? PriceVs52WeekRange { get; set; }
+        public decimal? SupportLevel1 { get; set; }
+        public double? DistanceToSupport1 { get; set; }
+        public decimal? SupportLevel2 { get; set; }
+        public decimal GrowthScore { get; set; }
+        public string GrowthRating { get; set; } = string.Empty;
+        public decimal? RevenueGrowth { get; set; }
+        public SwingScoreBreakdown ScoreBreakdown { get; set; } = new();
+        public string Recommendation { get; set; } = string.Empty;
+    }
+
+    public class SwingScoreBreakdown
+    {
+        public string VolatilityScore { get; set; } = "N/A";
+        public string BetaScore { get; set; } = "N/A";
+        public string PricePosition { get; set; } = "N/A";
+        public string SupportProximity { get; set; } = "N/A";
+        public string GrowthMomentum { get; set; } = "N/A";
     }
 }

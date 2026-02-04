@@ -1,12 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
 using FinanceApi.Services;
-using System.Collections.Generic;
-using System.Threading.Tasks;
-using System;
-using System.Linq;
-using System.Diagnostics;
-using System.Text.Json;
-using System.IO;
 
 namespace FinanceApi.Controllers
 {
@@ -32,8 +25,6 @@ namespace FinanceApi.Controllers
         {
             try
             {
-                _logger.LogInformation($"📊 Comparing {symbol} vs S&P 500 for {period} year(s)");
-
                 var comparison = await _performanceService.CompareStockToSP500Async(symbol, period);
 
                 if (comparison == null)
@@ -59,8 +50,6 @@ namespace FinanceApi.Controllers
         {
             try
             {
-                _logger.LogInformation($"📊 Comparing portfolio vs S&P 500 for {period} year(s)");
-
                 var comparison = await _performanceService.ComparePortfolioToSP500Async(period);
 
                 if (comparison == null)
@@ -86,8 +75,6 @@ namespace FinanceApi.Controllers
         {
             try
             {
-                _logger.LogInformation($"📈 Fetching historical data for {symbol} ({period} year(s))");
-
                 var data = await _performanceService.GetHistoricalPriceDataAsync(symbol, period);
 
                 if (data == null)
@@ -113,59 +100,14 @@ namespace FinanceApi.Controllers
         {
             try
             {
-                _logger.LogInformation($"🐍 Running Python script for {period} year(s) performance comparison");
+                var data = await _performanceService.GetPythonPortfolioPerformanceAsync(period);
 
-                var scriptPath = Path.Combine(Directory.GetCurrentDirectory(), "scripts", "sp500_performance_comparison.py");
-
-                if (!System.IO.File.Exists(scriptPath))
+                if (data == null)
                 {
-                    return NotFound(new { error = "Python script not found" });
+                    return NotFound(new { error = "No performance data returned from Python script" });
                 }
 
-                var processInfo = new ProcessStartInfo
-                {
-                    FileName = "python",
-                    Arguments = $"\"{scriptPath}\" -p {period}",
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true,
-                    UseShellExecute = false,
-                    CreateNoWindow = true,
-                    WorkingDirectory = Path.Combine(Directory.GetCurrentDirectory(), "scripts")
-                };
-
-                using (var process = Process.Start(processInfo))
-                {
-                    if (process == null)
-                    {
-                        return StatusCode(500, new { error = "Failed to start Python process" });
-                    }
-
-                    var output = await process.StandardOutput.ReadToEndAsync();
-                    var error = await process.StandardError.ReadToEndAsync();
-                    await process.WaitForExitAsync();
-
-                    if (process.ExitCode != 0)
-                    {
-                        _logger.LogError($"Python script failed: {error}");
-                        return StatusCode(500, new { error = "Python script execution failed", details = error });
-                    }
-
-                    // Find the most recent JSON file
-                    var scriptsDir = Path.Combine(Directory.GetCurrentDirectory(), "scripts");
-                    var jsonFiles = Directory.GetFiles(scriptsDir, "performance_comparison_*.json")
-                        .OrderByDescending(f => System.IO.File.GetLastWriteTime(f))
-                        .FirstOrDefault();
-
-                    if (jsonFiles == null)
-                    {
-                        return NotFound(new { error = "Performance data file not found" });
-                    }
-
-                    var jsonContent = await System.IO.File.ReadAllTextAsync(jsonFiles);
-                    var data = JsonSerializer.Deserialize<JsonElement>(jsonContent);
-
-                    return Ok(data);
-                }
+                return Ok(data);
             }
             catch (Exception ex)
             {

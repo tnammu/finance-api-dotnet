@@ -31,6 +31,26 @@ namespace FinanceApi.Models
         public decimal? ProfitMargin { get; set; }
         public decimal? Beta { get; set; }
 
+        // Valuation Metrics
+        public decimal PE { get; set; }          // Price to Earnings ratio
+        public decimal PB { get; set; }          // Price to Book ratio
+        public decimal MarketCap { get; set; }   // Market Capitalization
+        public decimal EarningsGrowth { get; set; } // Earnings growth rate
+
+        // Payout Policy Tracking
+        public string PayoutPolicy { get; set; } = "Unknown"; // "Dividend Only", "Reinvestment Only", "Mixed", "None", "Unknown"
+        public decimal? DividendAllocationPct { get; set; }    // % of earnings paid as dividends (same as PayoutRatio)
+        public decimal? ReinvestmentAllocationPct { get; set; } // % of earnings reinvested (100 - PayoutRatio)
+
+        // Growth Metrics (for growth stock analysis)
+        public decimal? RevenueGrowth { get; set; }  // YoY Revenue Growth %
+        public decimal? EPSGrowthRate { get; set; }  // YoY EPS Growth %
+        public decimal? PEGRatio { get; set; }       // PE / EPS Growth
+        public decimal? RuleOf40Score { get; set; }  // Revenue Growth % + Profit Margin %
+        public decimal? FreeCashFlow { get; set; }   // Operating CF - CapEx
+        public decimal GrowthScore { get; set; }     // Composite score 0-100
+        public string GrowthRating { get; set; } = string.Empty; // Strong/Moderate/Weak
+
         // Historical Analysis
         public int ConsecutiveYearsOfPayments { get; set; }
         public decimal? DividendGrowthRate { get; set; }

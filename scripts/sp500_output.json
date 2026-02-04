@@ -1,0 +1,555 @@
+Matplotlib is building the font cache; this may take a moment.
+Fetching S&P 500 monthly data...
+Fetching data from 2020-12-02 to 2025-12-01
+Received 60 months of data
+Successfully processed S&P 500 data
+Plot saved to sp500_monthly_analysis.png
+
+================================================================================
+S&P 500 MONTHLY ANALYSIS SUMMARY
+================================================================================
+
+OVERALL STATISTICS:
+  Total observations: 59
+  Positive months: 39 (66.1%)
+  Negative months: 20 (33.9%)
+
+BEST PERFORMING MONTH:
+  November: +3.87% avg growth
+  (4/5 positive occurrences)
+
+WORST PERFORMING MONTH:
+  September: -2.68% avg growth
+  (2/5 positive occurrences)
+
+MOST CONSISTENTLY POSITIVE:
+  May: 100.0% positive rate
+  (5/5 positive)
+
+MOST CONSISTENTLY NEGATIVE:
+  February: 40.0% positive rate
+  (2/5 positive)
+
+DETAILED MONTHLY BREAKDOWN:
+--------------------------------------------------------------------------------
+Month        Avg Growth   Positive   Negative   Win Rate  
+--------------------------------------------------------------------------------
+January           +1.30%         3          1      75.0%
+February          +0.12%         2          3      40.0%
+March             +1.74%         4          1      80.0%
+April             -1.40%         2          3      40.0%
+May               +2.35%         5          0     100.0%
+June              +1.75%         4          1      80.0%
+July              +3.56%         5          0     100.0%
+August            +0.22%         3          2      60.0%
+September         -2.68%         2          3      40.0%
+October           +2.80%         3          2      60.0%
+November          +3.87%         4          1      80.0%
+December          -0.03%         2          3      40.0%
+================================================================================
+
+{
+  "success": true,
+  "symbol": "^GSPC",
+  "name": "S&P 500",
+  "startDate": "2020-12-02",
+  "endDate": "2025-12-01",
+  "monthlyData": [
+    {
+      "date": "2021-01",
+      "close": 3714.24,
+      "growth": 0.0
+    },
+    {
+      "date": "2021-02",
+      "close": 3811.15,
+      "growth": 2.61
+    },
+    {
+      "date": "2021-03",
+      "close": 3972.89,
+      "growth": 4.24
+    },
+    {
+      "date": "2021-04",
+      "close": 4181.17,
+      "growth": 5.24
+    },
+    {
+      "date": "2021-05",
+      "close": 4204.11,
+      "growth": 0.55
+    },
+    {
+      "date": "2021-06",
+      "close": 4297.5,
+      "growth": 2.22
+    },
+    {
+      "date": "2021-07",
+      "close": 4395.26,
+      "growth": 2.27
+    },
+    {
+      "date": "2021-08",
+      "close": 4522.68,
+      "growth": 2.9
+    },
+    {
+      "date": "2021-09",
+      "close": 4307.54,
+      "growth": -4.76
+    },
+    {
+      "date": "2021-10",
+      "close": 4605.38,
+      "growth": 6.91
+    },
+    {
+      "date": "2021-11",
+      "close": 4567.0,
+      "growth": -0.83
+    },
+    {
+      "date": "2021-12",
+      "close": 4766.18,
+      "growth": 4.36
+    },
+    {
+      "date": "2022-01",
+      "close": 4515.55,
+      "growth": -5.26
+    },
+    {
+      "date": "2022-02",
+      "close": 4373.94,
+      "growth": -3.14
+    },
+    {
+      "date": "2022-03",
+      "close": 4530.41,
+      "growth": 3.58
+    },
+    {
+      "date": "2022-04",
+      "close": 4131.93,
+      "growth": -8.8
+    },
+    {
+      "date": "2022-05",
+      "close": 4132.15,
+      "growth": 0.01
+    },
+    {
+      "date": "2022-06",
+      "close": 3785.38,
+      "growth": -8.39
+    },
+    {
+      "date": "2022-07",
+      "close": 4130.29,
+      "growth": 9.11
+    },
+    {
+      "date": "2022-08",
+      "close": 3955.0,
+      "growth": -4.24
+    },
+    {
+      "date": "2022-09",
+      "close": 3585.62,
+      "growth": -9.34
+    },
+    {
+      "date": "2022-10",
+      "close": 3871.98,
+      "growth": 7.99
+    },
+    {
+      "date": "2022-11",
+      "close": 4080.11,
+      "growth": 5.38
+    },
+    {
+      "date": "2022-12",
+      "close": 3839.5,
+      "growth": -5.9
+    },
+    {
+      "date": "2023-01",
+      "close": 4076.6,
+      "growth": 6.18
+    },
+    {
+      "date": "2023-02",
+      "close": 3970.15,
+      "growth": -2.61
+    },
+    {
+      "date": "2023-03",
+      "close": 4109.31,
+      "growth": 3.51
+    },
+    {
+      "date": "2023-04",
+      "close": 4169.48,
+      "growth": 1.46
+    },
+    {
+      "date": "2023-05",
+      "close": 4179.83,
+      "growth": 0.25
+    },
+    {
+      "date": "2023-06",
+      "close": 4450.38,
+      "growth": 6.47
+    },
+    {
+      "date": "2023-07",
+      "close": 4588.96,
+      "growth": 3.11
+    },
+    {
+      "date": "2023-08",
+      "close": 4507.66,
+      "growth": -1.77
+    },
+    {
+      "date": "2023-09",
+      "close": 4288.05,
+      "growth": -4.87
+    },
+    {
+      "date": "2023-10",
+      "close": 4193.8,
+      "growth": -2.2
+    },
+    {
+      "date": "2023-11",
+      "close": 4567.8,
+      "growth": 8.92
+    },
+    {
+      "date": "2023-12",
+      "close": 4769.83,
+      "growth": 4.42
+    },
+    {
+      "date": "2024-01",
+      "close": 4845.65,
+      "growth": 1.59
+    },
+    {
+      "date": "2024-02",
+      "close": 5096.27,
+      "growth": 5.17
+    },
+    {
+      "date": "2024-03",
+      "close": 5254.35,
+      "growth": 3.1
+    },
+    {
+      "date": "2024-04",
+      "close": 5035.69,
+      "growth": -4.16
+    },
+    {
+      "date": "2024-05",
+      "close": 5277.51,
+      "growth": 4.8
+    },
+    {
+      "date": "2024-06",
+      "close": 5460.48,
+      "growth": 3.47
+    },
+    {
+      "date": "2024-07",
+      "close": 5522.3,
+      "growth": 1.13
+    },
+    {
+      "date": "2024-08",
+      "close": 5648.4,
+      "growth": 2.28
+    },
+    {
+      "date": "2024-09",
+      "close": 5762.48,
+      "growth": 2.02
+    },
+    {
+      "date": "2024-10",
+      "close": 5705.45,
+      "growth": -0.99
+    },
+    {
+      "date": "2024-11",
+      "close": 6032.38,
+      "growth": 5.73
+    },
+    {
+      "date": "2024-12",
+      "close": 5881.63,
+      "growth": -2.5
+    },
+    {
+      "date": "2025-01",
+      "close": 6040.53,
+      "growth": 2.7
+    },
+    {
+      "date": "2025-02",
+      "close": 5954.5,
+      "growth": -1.42
+    },
+    {
+      "date": "2025-03",
+      "close": 5611.85,
+      "growth": -5.75
+    },
+    {
+      "date": "2025-04",
+      "close": 5569.06,
+      "growth": -0.76
+    },
+    {
+      "date": "2025-05",
+      "close": 5911.69,
+      "growth": 6.15
+    },
+    {
+      "date": "2025-06",
+      "close": 6204.95,
+      "growth": 4.96
+    },
+    {
+      "date": "2025-07",
+      "close": 6339.39,
+      "growth": 2.17
+    },
+    {
+      "date": "2025-08",
+      "close": 6460.26,
+      "growth": 1.91
+    },
+    {
+      "date": "2025-09",
+      "close": 6688.46,
+      "growth": 3.53
+    },
+    {
+      "date": "2025-10",
+      "close": 6840.2,
+      "growth": 2.27
+    },
+    {
+      "date": "2025-11",
+      "close": 6849.09,
+      "growth": 0.13
+    },
+    {
+      "date": "2025-12",
+      "close": 6812.63,
+      "growth": -0.53
+    }
+  ],
+  "statistics": {
+    "totalReturn": 83.42,
+    "avgMonthlyGrowth": 1.13,
+    "totalMonths": 60,
+    "positiveMonths": 39,
+    "negativeMonths": 20,
+    "bestMonth": {
+      "date": "2022-07",
+      "growth": 9.11
+    },
+    "worstMonth": {
+      "date": "2022-09",
+      "growth": -9.34
+    }
+  },
+  "consolidatedMonthlyData": [
+    {
+      "month": "January",
+      "avgGrowth": 1.3,
+      "occurrences": 4,
+      "positiveCount": 3,
+      "negativeCount": 1,
+      "positivePercentage": 75.0,
+      "allGrowthValues": [
+        -5.26,
+        6.18,
+        1.59,
+        2.7
+      ]
+    },
+    {
+      "month": "February",
+      "avgGrowth": 0.12,
+      "occurrences": 5,
+      "positiveCount": 2,
+      "negativeCount": 3,
+      "positivePercentage": 40.0,
+      "allGrowthValues": [
+        2.61,
+        -3.14,
+        -2.61,
+        5.17,
+        -1.42
+      ]
+    },
+    {
+      "month": "March",
+      "avgGrowth": 1.74,
+      "occurrences": 5,
+      "positiveCount": 4,
+      "negativeCount": 1,
+      "positivePercentage": 80.0,
+      "allGrowthValues": [
+        4.24,
+        3.58,
+        3.51,
+        3.1,
+        -5.75
+      ]
+    },
+    {
+      "month": "April",
+      "avgGrowth": -1.4,
+      "occurrences": 5,
+      "positiveCount": 2,
+      "negativeCount": 3,
+      "positivePercentage": 40.0,
+      "allGrowthValues": [
+        5.24,
+        -8.8,
+        1.46,
+        -4.16,
+        -0.76
+      ]
+    },
+    {
+      "month": "May",
+      "avgGrowth": 2.35,
+      "occurrences": 5,
+      "positiveCount": 5,
+      "negativeCount": 0,
+      "positivePercentage": 100.0,
+      "allGrowthValues": [
+        0.55,
+        0.01,
+        0.25,
+        4.8,
+        6.15
+      ]
+    },
+    {
+      "month": "June",
+      "avgGrowth": 1.75,
+      "occurrences": 5,
+      "positiveCount": 4,
+      "negativeCount": 1,
+      "positivePercentage": 80.0,
+      "allGrowthValues": [
+        2.22,
+        -8.39,
+        6.47,
+        3.47,
+        4.96
+      ]
+    },
+    {
+      "month": "July",
+      "avgGrowth": 3.56,
+      "occurrences": 5,
+      "positiveCount": 5,
+      "negativeCount": 0,
+      "positivePercentage": 100.0,
+      "allGrowthValues": [
+        2.27,
+        9.11,
+        3.11,
+        1.13,
+        2.17
+      ]
+    },
+    {
+      "month": "August",
+      "avgGrowth": 0.22,
+      "occurrences": 5,
+      "positiveCount": 3,
+      "negativeCount": 2,
+      "positivePercentage": 60.0,
+      "allGrowthValues": [
+        2.9,
+        -4.24,
+        -1.77,
+        2.28,
+        1.91
+      ]
+    },
+    {
+      "month": "September",
+      "avgGrowth": -2.68,
+      "occurrences": 5,
+      "positiveCount": 2,
+      "negativeCount": 3,
+      "positivePercentage": 40.0,
+      "allGrowthValues": [
+        -4.76,
+        -9.34,
+        -4.87,
+        2.02,
+        3.53
+      ]
+    },
+    {
+      "month": "October",
+      "avgGrowth": 2.8,
+      "occurrences": 5,
+      "positiveCount": 3,
+      "negativeCount": 2,
+      "positivePercentage": 60.0,
+      "allGrowthValues": [
+        6.91,
+        7.99,
+        -2.2,
+        -0.99,
+        2.27
+      ]
+    },
+    {
+      "month": "November",
+      "avgGrowth": 3.87,
+      "occurrences": 5,
+      "positiveCount": 4,
+      "negativeCount": 1,
+      "positivePercentage": 80.0,
+      "allGrowthValues": [
+        -0.83,
+        5.38,
+        8.92,
+        5.73,
+        0.13
+      ]
+    },
+    {
+      "month": "December",
+      "avgGrowth": -0.03,
+      "occurrences": 5,
+      "positiveCount": 2,
+      "negativeCount": 3,
+      "positivePercentage": 40.0,
+      "allGrowthValues": [
+        4.36,
+        -5.9,
+        4.42,
+        -2.5,
+        -0.53
+      ]
+    }
+  ]
+}

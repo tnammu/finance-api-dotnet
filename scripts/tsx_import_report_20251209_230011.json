@@ -1,0 +1,861 @@
+{
+  "startTime": "2025-12-09T21:17:14.724517",
+  "endTime": "2025-12-09T23:00:11.050767",
+  "durationSeconds": 6176.32625,
+  "total": 2011,
+  "successful": 1841,
+  "failed": 170,
+  "successRate": 91.54649428145201,
+  "failedStocks": [
+    {
+      "symbol": "IGBT.UN.TO",
+      "name": "2028 Investment Grade Bond Trust",
+      "error": "HTTPConnectionPool(host='localhost', port=5000): Max retries exceeded with url: /api/dividends/analyze/IGBT.UN.TO (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x0000016AE34D2120>: Failed to establish a new connection: [WinError 10061] No connection could be made because the target machine actively refused it'))"
+    },
+    {
+      "symbol": "BTCQ.TO",
+      "name": "3iQ Bitcoin ETF",
+      "error": "HTTPConnectionPool(host='localhost', port=5000): Max retries exceeded with url: /api/dividends/analyze/BTCQ.TO (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x0000016AE349DA90>: Failed to establish a new connection: [WinError 10061] No connection could be made because the target machine actively refused it'))"
+    },
+    {
+      "symbol": "ETHQ.TO",
+      "name": "3iQ Ether Staking ETF",
+      "error": "HTTPConnectionPool(host='localhost', port=5000): Max retries exceeded with url: /api/dividends/analyze/ETHQ.TO (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x0000016AE349E710>: Failed to establish a new connection: [WinError 10061] No connection could be made because the target machine actively refused it'))"
+    },
+    {
+      "symbol": "SOLQ.TO",
+      "name": "3iQ Solana Staking ETF",
+      "error": "HTTPConnectionPool(host='localhost', port=5000): Max retries exceeded with url: /api/dividends/analyze/SOLQ.TO (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x0000016AE35A8640>: Failed to establish a new connection: [WinError 10061] No connection could be made because the target machine actively refused it'))"
+    },
+    {
+      "symbol": "XRPQ.TO",
+      "name": "3iQ XRP ETF",
+      "error": "HTTPConnectionPool(host='localhost', port=5000): Max retries exceeded with url: /api/dividends/analyze/XRPQ.TO (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x0000016AE35A89D0>: Failed to establish a new connection: [WinError 10061] No connection could be made because the target machine actively refused it'))"
+    },
+    {
+      "symbol": "VNP.TO",
+      "name": "5N Plus Inc.",
+      "error": "HTTPConnectionPool(host='localhost', port=5000): Max retries exceeded with url: /api/dividends/analyze/VNP.TO (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x0000016AE35460F0>: Failed to establish a new connection: [WinError 10061] No connection could be made because the target machine actively refused it'))"
+    },
+    {
+      "symbol": "AW.TO",
+      "name": "A & W Food Services of Canada Inc.",
+      "error": "HTTPConnectionPool(host='localhost', port=5000): Max retries exceeded with url: /api/dividends/analyze/AW.TO (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x0000016AE3542BE0>: Failed to establish a new connection: [WinError 10061] No connection could be made because the target machine actively refused it'))"
+    },
+    {
+      "symbol": "AAB.TO",
+      "name": "Aberdeen International Inc.",
+      "error": "HTTPConnectionPool(host='localhost', port=5000): Max retries exceeded with url: /api/dividends/analyze/AAB.TO (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x0000016AE3542F10>: Failed to establish a new connection: [WinError 10061] No connection could be made because the target machine actively refused it'))"
+    },
+    {
+      "symbol": "ABRA.TO",
+      "name": "AbraSilver Resource Corp.",
+      "error": "HTTPConnectionPool(host='localhost', port=5000): Max retries exceeded with url: /api/dividends/analyze/ABRA.TO (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x0000016AE3543130>: Failed to establish a new connection: [WinError 10061] No connection could be made because the target machine actively refused it'))"
+    },
+    {
+      "symbol": "FAP.TO",
+      "name": "abrdn Asia-Pacific Income Fund VCC",
+      "error": "HTTPConnectionPool(host='localhost', port=5000): Max retries exceeded with url: /api/dividends/analyze/FAP.TO (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x0000016AE3543350>: Failed to establish a new connection: [WinError 10061] No connection could be made because the target machine actively refused it'))"
+    },
+    {
+      "symbol": "ADN.TO",
+      "name": "Acadian Timber Corp.",
+      "error": "HTTPConnectionPool(host='localhost', port=5000): Max retries exceeded with url: /api/dividends/analyze/ADN.TO (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x0000016AE3543570>: Failed to establish a new connection: [WinError 10061] No connection could be made because the target machine actively refused it'))"
+    },
+    {
+      "symbol": "HDGE.TO",
+      "name": "Accelerate Absolute Return Fund",
+      "error": "HTTPConnectionPool(host='localhost', port=5000): Max retries exceeded with url: /api/dividends/analyze/HDGE.TO (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x0000016AE3543790>: Failed to establish a new connection: [WinError 10061] No connection could be made because the target machine actively refused it'))"
+    },
+    {
+      "symbol": "ARB.TO",
+      "name": "Accelerate Arbitrage Fund",
+      "error": "HTTPConnectionPool(host='localhost', port=5000): Max retries exceeded with url: /api/dividends/analyze/ARB.TO (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x0000016AE35439B0>: Failed to establish a new connection: [WinError 10061] No connection could be made because the target machine actively refused it'))"
+    },
+    {
+      "symbol": "ATSX.TO",
+      "name": "Accelerate Canadian Long Short Equity Fund",
+      "error": "HTTPConnectionPool(host='localhost', port=5000): Max retries exceeded with url: /api/dividends/analyze/ATSX.TO (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x0000016AE3543BD0>: Failed to establish a new connection: [WinError 10061] No connection could be made because the target machine actively refused it'))"
+    },
+    {
+      "symbol": "INCM.TO",
+      "name": "Accelerate Diversified Credit Income Fund",
+      "error": "HTTPConnectionPool(host='localhost', port=5000): Max retries exceeded with url: /api/dividends/analyze/INCM.TO (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x0000016AE3543DF0>: Failed to establish a new connection: [WinError 10061] No connection could be made because the target machine actively refused it'))"
+    },
+    {
+      "symbol": "ONEC.TO",
+      "name": "Accelerate OneChoice Alternative Multi-Asset Fund",
+      "error": "HTTPConnectionPool(host='localhost', port=5000): Max retries exceeded with url: /api/dividends/analyze/ONEC.TO (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x0000016AE3543CE0>: Failed to establish a new connection: [WinError 10061] No connection could be made because the target machine actively refused it'))"
+    },
+    {
+      "symbol": "ACD.TO",
+      "name": "Accord Financial Corp.",
+      "error": "HTTPConnectionPool(host='localhost', port=5000): Max retries exceeded with url: /api/dividends/analyze/ACD.TO (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x0000016AE3543AC0>: Failed to establish a new connection: [WinError 10061] No connection could be made because the target machine actively refused it'))"
+    },
+    {
+      "symbol": "ARA.TO",
+      "name": "Aclara Resources Inc.",
+      "error": "HTTPConnectionPool(host='localhost', port=5000): Max retries exceeded with url: /api/dividends/analyze/ARA.TO (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x0000016AE35438A0>: Failed to establish a new connection: [WinError 10061] No connection could be made because the target machine actively refused it'))"
+    },
+    {
+      "symbol": "AGF.B.TO",
+      "name": "AGF Management Limited",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "AKT.A.TO",
+      "name": "Akita Drilling Ltd.",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "AD.DB.A.TO",
+      "name": "Alaris Equity Partners Income Trust",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "AP.UN.TO",
+      "name": "Allied Properties Real Estate Investment Trust",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "HOT.DB.V.TO",
+      "name": "American Hotel Income Properties REIT LP",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "ADW.A.TO",
+      "name": "Andrew Peller Limited/Andrew Peller Limitee",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "AX.PR.E.TO",
+      "name": "Artis Real Estate Investment Trust",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "ACO.X.TO",
+      "name": "ATCO Ltd.",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "APR.UN.TO",
+      "name": "Automotive Properties Real Estate Investment Trust",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "BEK.B.TO",
+      "name": "Becker Milk Company Ltd. (The)",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "RBN.UN.TO",
+      "name": "Blue Ribbon Income Fund",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "ZUS.U.TO",
+      "name": "BMO Ultra Short-Term US Bond ETF",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "BEI.UN.TO",
+      "name": "Boardwalk Real Estate Investment Trust",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "BBD.A.TO",
+      "name": "Bombardier Inc.",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "BPF.UN.TO",
+      "name": "Boston Pizza Royalties Income Fund",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "BBU.UN.TO",
+      "name": "Brookfield Business Partners L.P.",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "BGI.UN.TO",
+      "name": "Brookfield Global Infrastructure Securities Income Fund",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "BIP.PR.B.TO",
+      "name": "Brookfield Infrastructure Partners L.P.",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "BPO.PR.A.TO",
+      "name": "Brookfield Office Properties Inc.",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "BPYP.PR.A.TO",
+      "name": "Brookfield Property Preferred L.P.",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "BPS.PR.A.TO",
+      "name": "Brookfield Property Split Corp.",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "BEP.PR.G.TO",
+      "name": "Brookfield Renewable Partners L.P.",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "BRF.PR.A.TO",
+      "name": "Brookfield Renewable Power Preferred Equity Inc.",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "HOM.U.TO",
+      "name": "BSR Real Estate Investment Trust",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "BTB.DB.I.TO",
+      "name": "BTB Real Estate Investment Trust",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "CAR.UN.TO",
+      "name": "Canadian Apartment Properties Real Estate Investment Trust",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "EIT.PR.A.TO",
+      "name": "Canoe EIT Income Fund",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "PBY.UN.TO",
+      "name": "Canso Credit Income Fund",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "CSE.PR.A.TO",
+      "name": "Capstone Infrastructure Corporation",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "CUP.U.TO",
+      "name": "Caribbean Utilities Company, Ltd.",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "CCL.A.TO",
+      "name": "CCL Industries Inc.",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "GIB.A.TO",
+      "name": "CGI Inc.",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "CSH.UN.TO",
+      "name": "Chartwell Retirement Residences",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "CHE.DB.H.TO",
+      "name": "Chemtrade Logistics Income Fund",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "CHP.UN.TO",
+      "name": "Choice Properties Real Estate Investment Trust",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "EMV.B.TO",
+      "name": "CI Emerging Markets Dividend Index ETF",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "CGQD.B.TO",
+      "name": "CI Global Quality Dividend Growth Index ETF",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "CHNA.B.TO",
+      "name": "CI ICBCUBS S&P China 500 Index ETF",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "UMNY.U.TO",
+      "name": "CI U.S. Money Market ETF",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "CUSD.U.TO",
+      "name": "CIBC USD Premium Cash Management ETF",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "CTF.UN.TO",
+      "name": "Citadel Income Fund",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "CCS.PR.C.TO",
+      "name": "Co-operators General Insurance Company",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "CSW.A.TO",
+      "name": "Corby Spirit and Wine Limited",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "CJR.B.TO",
+      "name": "Corus Entertainment Inc.",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "CRR.UN.TO",
+      "name": "Crombie Real Estate Investment Trust",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "CRT.UN.TO",
+      "name": "CT Real Estate Investment Trust",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "CIU.PR.A.TO",
+      "name": "CU Inc.",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "DII.A.TO",
+      "name": "Dorel Industries Inc.",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "MPCT.DB.TO",
+      "name": "Dream Impact Trust",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "DIR.UN.TO",
+      "name": "Dream Industrial Real Estate Investment Trust",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "D.UN.TO",
+      "name": "Dream Office Real Estate Investment Trust",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "DHT.U.TO",
+      "name": "DRI Healthcare Trust",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "DC.A.TO",
+      "name": "Dundee Corporation",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "DXDU.U.TO",
+      "name": "Dynamic Active U.S. Discount Bond ETF",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "EMP.A.TO",
+      "name": "Empire Company Limited",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "ENI.UN.TO",
+      "name": "Energy Income Fund",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "ERE.UN.TO",
+      "name": "European Residential Real Estate Investment Trust",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "FIH.U.TO",
+      "name": "Fairfax India Holdings Corporation",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "FCD.UN.TO",
+      "name": "Firm Capital Property Trust",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "FCR.UN.TO",
+      "name": "First Capital Real Estate Investment Trust",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "FN.PR.A.TO",
+      "name": "First National Financial Corporation",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "AUGB.F.TO",
+      "name": "First Trust Vest U.S. Equity Buffer ETF - August",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "FEBB.F.TO",
+      "name": "First Trust Vest U.S. Equity Buffer ETF - February",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "MAYB.F.TO",
+      "name": "First Trust Vest U.S. Equity Buffer ETF - May",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "NOVB.F.TO",
+      "name": "First Trust Vest U.S. Equity Buffer ETF - November",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "MHC.U.TO",
+      "name": "Flagship Communities Real Estate Investment Trust",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "FVL.TO",
+      "name": "Freegold Ventures Limited",
+      "error": "HTTP 500"
+    },
+    {
+      "symbol": "GLO.TO",
+      "name": "Global Atomic Corporation",
+      "error": "HTTP 500"
+    },
+    {
+      "symbol": "UBIL.U.TO",
+      "name": "Global X 0-3 Month U.S. T-Bill ETF",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "HSUV.U.TO",
+      "name": "Global X USD Cash Maximizer Corporate Class ETF",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "UCSH.U.TO",
+      "name": "Global X USD High Interest Savings ETF",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "GO.U.TO",
+      "name": "GO Residential Real Estate Investment Trust",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "GRC.TO",
+      "name": "Gold Springs Resource Corp.",
+      "error": "HTTP 500"
+    },
+    {
+      "symbol": "GRT.UN.TO",
+      "name": "Granite Real Estate Investment Trust",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "GUTB.U.TO",
+      "name": "Guardian Ultra-Short U.S. T-Bill Fund",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "HR.UN.TO",
+      "name": "H&R Real Estate Investment Trust",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "HMM.A.TO",
+      "name": "Hammond Manufacturing Company Limited",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "HPS.A.TO",
+      "name": "Hammond Power Solutions Inc.",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "MDS.UN.TO",
+      "name": "Healthcare Special Opportunities Fund",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "HFPC.U.TO",
+      "name": "Helios Fairfax Partners Corporation",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "INC.UN.TO",
+      "name": "Income Financial Trust",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "INO.UN.TO",
+      "name": "Inovalis Real Estate Investment Trust",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "IIP.UN.TO",
+      "name": "InterRent Real Estate Investment Trust",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "PXU.F.TO",
+      "name": "Invesco RAFI U.S. Index ETF",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "ULV.C.TO",
+      "name": "Invesco S&P 500 Low Volatility Index ETF",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "IUFR.U.TO",
+      "name": "Invesco US Treasury Floating Rate Note Index ETF (USD)",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "JFS.UN.TO",
+      "name": "JFT Strategies Fund",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "KMP.UN.TO",
+      "name": "Killam Apartment Real Estate Investment Trust",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "LAS.A.TO",
+      "name": "Lassonde Industries Inc.",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "XMF.A.TO",
+      "name": "M Split Corp.",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "MKZ.UN.TO",
+      "name": "Mackenzie Master Limited Partnership",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "MAK.U.TO",
+      "name": "MAK Acquisition Corp.",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "MEME.B.TO",
+      "name": "Manulife Multifactor Emerging Markets Index ETF",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "IDEF.B.TO",
+      "name": "Manulife Smart International Defensive Equity ETF",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "IDIV.B.TO",
+      "name": "Manulife Smart International Dividend ETF",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "SPAC.RT.U.TO",
+      "name": "Mercer Park Opportunities Corp.",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "MID.UN.TO",
+      "name": "MINT Income Fund",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "MI.UN.TO",
+      "name": "Minto Apartment Real Estate Investment Trust",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "TPX.A.TO",
+      "name": "Molson Coors Canada Inc.",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "MRG.DB.B.TO",
+      "name": "Morguard North American Residential Real Estate Investment Trust",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "MRT.DB.A.TO",
+      "name": "Morguard Real Estate Investment Trust",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "NXR.UN.TO",
+      "name": "Nexus Industrial REIT",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "NCF.TO",
+      "name": "Northcliff Resources Ltd.",
+      "error": "HTTP 500"
+    },
+    {
+      "symbol": "NRR.UN.TO",
+      "name": "Northview Residential REIT",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "NWH.DB.H.TO",
+      "name": "Northwest Healthcare Properties Real Estate Investment Trust",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "PVS.PR.H.TO",
+      "name": "Partners Value Split Corp.",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "PGI.UN.TO",
+      "name": "PIMCO Global Income Opportunities Fund",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "PMEI.UN.TO",
+      "name": "PIMCO Monthly Enhanced Income Fund",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "PLZ.UN.TO",
+      "name": "Plaza Retail REIT",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "PNC.A.TO",
+      "name": "Postmedia Network Canada Corp.",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "PWF.PF.A.TO",
+      "name": "Power Financial Corporation",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "MMP.UN.TO",
+      "name": "Precious Metals and Mining Trust",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "PIC.A.TO",
+      "name": "Premium Income Corporation",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "PMZ.UN.TO",
+      "name": "Primaris Real Estate Investment Trust",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "PRV.DB.TO",
+      "name": "PRO Real Estate Investment Trust",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "BTCO.B.TO",
+      "name": "Purpose Core Bitcoin ETF",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "ETHO.B.TO",
+      "name": "Purpose Core Ether ETF",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "PSU.U.TO",
+      "name": "Purpose US Cash Fund",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "MNU.U.TO",
+      "name": "Purpose USD Cash Management Fund",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "QBR.A.TO",
+      "name": "Quebecor Inc.",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "RPR.DB.TO",
+      "name": "Ravelin Properties REIT",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "RAV.UN.TO",
+      "name": "Ravensource Fund",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "QSP.UN.TO",
+      "name": "Restaurant Brands International Limited Partnership",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "RPI.UN.TO",
+      "name": "Richards Packaging Income Fund",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "REI.UN.TO",
+      "name": "RioCan Real Estate Investment Trust",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "RCI.A.TO",
+      "name": "Rogers Communications Inc.",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "MIC.PR.A.TO",
+      "name": "Sagen MI Canada Inc.",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "SRV.UN.TO",
+      "name": "SIR Royalty Income Fund",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "SGR.U.TO",
+      "name": "Slate Grocery REIT",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "SRU.UN.TO",
+      "name": "SmartCentres Real Estate Investment Trust",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "SFI.TO",
+      "name": "Solution Financial Inc.",
+      "error": "HTTP 500"
+    },
+    {
+      "symbol": "COP.U.TO",
+      "name": "Sprott Physical Copper Trust",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "U.U.TO",
+      "name": "Sprott Physical Uranium Trust",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "SAU.TO",
+      "name": "St. Augustine Gold and Copper Limited",
+      "error": "HTTP 500"
+    },
+    {
+      "symbol": "RAY.A.TO",
+      "name": "Stingray Group Inc.",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "SIH.UN.TO",
+      "name": "Sustainable Innovation & Health Dividend Fund",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "SSF.UN.TO",
+      "name": "Symphony Floating Rate Senior Loan Fund",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "TLO.TO",
+      "name": "Talon Metals Corp.",
+      "error": "HTTP 500"
+    },
+    {
+      "symbol": "TBUF.U.TO",
+      "name": "TD Target 2026 U.S. Investment Grade Bond ETF",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "TBUG.U.TO",
+      "name": "TD Target 2027 U.S. Investment Grade Bond ETF",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "TUSD.U.TO",
+      "name": "TD U.S. Cash Management ETF",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "TECK.A.TO",
+      "name": "Teck Resources Limited",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "QETH.U.TO",
+      "name": "The Ether Fund",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "THNC.TO",
+      "name": "Thinkific Labs Inc.",
+      "error": "HTTP 500"
+    },
+    {
+      "symbol": "TCL.A.TO",
+      "name": "Transcontinental Inc.",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "TNT.UN.TO",
+      "name": "True North Commercial Real Estate Investment Trust",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "TRX.TO",
+      "name": "TRX Gold Corporation",
+      "error": "HTTP 500"
+    },
+    {
+      "symbol": "TVA.B.TO",
+      "name": "TVA Group Inc.",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "FTU.TO",
+      "name": "US Financial 15 Split Corp.",
+      "error": "HTTP 500"
+    },
+    {
+      "symbol": "HISU.U.TO",
+      "name": "US High Interest Savings Account Fund",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "MUSD.U.TO",
+      "name": "US Premium Cash Management Fund",
+      "error": "HTTP 404"
+    },
+    {
+      "symbol": "WCM.A.TO",
+      "name": "Wilmington Capital Management Inc.",
+      "error": "HTTP 404"
+    }
+  ]
+}

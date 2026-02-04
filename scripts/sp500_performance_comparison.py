@@ -201,19 +201,19 @@ class PerformanceComparator:
 
     def run_comparison(self):
         """Run full portfolio vs S&P 500 comparison"""
-        print("\n" + "="*60)
-        print("📈 S&P 500 PERFORMANCE COMPARISON")
-        print("="*60)
-        print(f"Period: {self.start_date.strftime('%Y-%m-%d')} to {self.end_date.strftime('%Y-%m-%d')}")
-        print(f"Benchmark: {BENCHMARK_SYMBOL} (S&P 500)")
-        print("="*60 + "\n")
+        print("\n" + "="*60, file=sys.stderr)
+        print("📈 S&P 500 PERFORMANCE COMPARISON", file=sys.stderr)
+        print("="*60, file=sys.stderr)
+        print(f"Period: {self.start_date.strftime('%Y-%m-%d')} to {self.end_date.strftime('%Y-%m-%d')}", file=sys.stderr)
+        print(f"Benchmark: {BENCHMARK_SYMBOL} (S&P 500)", file=sys.stderr)
+        print("="*60 + "\n", file=sys.stderr)
 
         # Fetch benchmark data
-        print(f"📊 Fetching benchmark data ({BENCHMARK_SYMBOL})...")
+        print(f"📊 Fetching benchmark data ({BENCHMARK_SYMBOL})...", file=sys.stderr)
         benchmark_data = self.fetch_historical_data(BENCHMARK_SYMBOL)
 
         if benchmark_data.empty:
-            print("❌ Failed to fetch benchmark data. Exiting.")
+            print("❌ Failed to fetch benchmark data. Exiting.", file=sys.stderr)
             return None
 
         benchmark_returns = self.calculate_returns(benchmark_data)
@@ -225,21 +225,21 @@ class PerformanceComparator:
             'max_drawdown_pct': self.calculate_max_drawdown(benchmark_returns)['max_drawdown_pct']
         }
 
-        print(f"\n📊 {BENCHMARK_SYMBOL} Benchmark Performance:")
-        print(f"  Total Return: {benchmark_metrics['total_return']:.2f}%")
-        print(f"  Annualized Return: {benchmark_metrics['annualized_return']:.2f}%")
-        print(f"  Volatility: {benchmark_metrics['volatility']:.2f}%")
-        print(f"  Sharpe Ratio: {benchmark_metrics['sharpe_ratio']:.2f}")
-        print(f"  Max Drawdown: {benchmark_metrics['max_drawdown_pct']:.2f}%")
+        print(f"\n📊 {BENCHMARK_SYMBOL} Benchmark Performance:", file=sys.stderr)
+        print(f"  Total Return: {benchmark_metrics['total_return']:.2f}%", file=sys.stderr)
+        print(f"  Annualized Return: {benchmark_metrics['annualized_return']:.2f}%", file=sys.stderr)
+        print(f"  Volatility: {benchmark_metrics['volatility']:.2f}%", file=sys.stderr)
+        print(f"  Sharpe Ratio: {benchmark_metrics['sharpe_ratio']:.2f}", file=sys.stderr)
+        print(f"  Max Drawdown: {benchmark_metrics['max_drawdown_pct']:.2f}%", file=sys.stderr)
 
         # Fetch and analyze portfolio
         stocks = self.fetch_portfolio_stocks()
 
         if not stocks:
-            print("❌ No stocks to analyze")
+            print("❌ No stocks to analyze", file=sys.stderr)
             return None
 
-        print(f"\n🔍 Analyzing {len(stocks)} stocks...\n")
+        print(f"\n🔍 Analyzing {len(stocks)} stocks...\n", file=sys.stderr)
 
         results = []
         for stock in stocks:
@@ -255,19 +255,19 @@ class PerformanceComparator:
         results.sort(key=lambda x: x['total_return'], reverse=True)
 
         # Display results
-        print("\n" + "="*60)
-        print("📊 PORTFOLIO PERFORMANCE SUMMARY")
-        print("="*60)
+        print("\n" + "="*60, file=sys.stderr)
+        print("📊 PORTFOLIO PERFORMANCE SUMMARY", file=sys.stderr)
+        print("="*60, file=sys.stderr)
 
-        print(f"\n{'Symbol':<10} {'Return %':<12} {'vs S&P500':<12} {'Beta':<8} {'Alpha %':<10} {'Sharpe':<8}")
-        print("-" * 60)
+        print(f"\n{'Symbol':<10} {'Return %':<12} {'vs S&P500':<12} {'Beta':<8} {'Alpha %':<10} {'Sharpe':<8}", file=sys.stderr)
+        print("-" * 60, file=sys.stderr)
 
         for r in results:
             alpha_str = f"{r['alpha']:.2f}" if r['alpha'] is not None else "N/A"
             beta_str = f"{r['beta']:.2f}" if not np.isnan(r['beta']) else "N/A"
 
             print(f"{r['symbol']:<10} {r['total_return']:>10.2f}% {r['vs_benchmark']:>10.2f}% "
-                  f"{beta_str:>6} {alpha_str:>8} {r['sharpe_ratio']:>6.2f}")
+                  f"{beta_str:>6} {alpha_str:>8} {r['sharpe_ratio']:>6.2f}", file=sys.stderr)
 
         # Portfolio summary
         if results:
@@ -275,17 +275,15 @@ class PerformanceComparator:
             avg_alpha = np.mean([r['alpha'] for r in results if r['alpha'] is not None])
             avg_beta = np.mean([r['beta'] for r in results if not np.isnan(r['beta'])])
 
-            print("\n" + "="*60)
-            print("📈 PORTFOLIO AVERAGES")
-            print("="*60)
-            print(f"Average Return: {avg_return:.2f}%")
-            print(f"Average Alpha: {avg_alpha:.2f}%")
-            print(f"Average Beta: {avg_beta:.2f}")
-            print(f"Stocks Outperforming S&P 500: {len([r for r in results if r['vs_benchmark'] > 0])}/{len(results)}")
+            print("\n" + "="*60, file=sys.stderr)
+            print("📈 PORTFOLIO AVERAGES", file=sys.stderr)
+            print("="*60, file=sys.stderr)
+            print(f"Average Return: {avg_return:.2f}%", file=sys.stderr)
+            print(f"Average Alpha: {avg_alpha:.2f}%", file=sys.stderr)
+            print(f"Average Beta: {avg_beta:.2f}", file=sys.stderr)
+            print(f"Stocks Outperforming S&P 500: {len([r for r in results if r['vs_benchmark'] > 0])}/{len(results)}", file=sys.stderr)
 
-        # Export results
-        self.export_results(results, benchmark_metrics)
-
+        # Return results (will be output as JSON to stdout)
         return {
             'benchmark': benchmark_metrics,
             'stocks': results,
@@ -369,14 +367,18 @@ def main():
             # Non-interactive mode (use command-line argument)
             period = args.period
 
-        print(f"\n🚀 Starting {period}-year performance comparison...")
+        print(f"\n🚀 Starting {period}-year performance comparison...", file=sys.stderr)
 
         comparator = PerformanceComparator(period_years=period)
-        comparator.run_comparison()
+        results = comparator.run_comparison()
 
-        print("\n" + "="*60)
-        print("✅ Analysis complete!")
-        print("="*60)
+        if results:
+            # Output JSON to stdout for the API to consume
+            print(json.dumps(results))
+
+        print("\n" + "="*60, file=sys.stderr)
+        print("✅ Analysis complete!", file=sys.stderr)
+        print("="*60, file=sys.stderr)
 
     except KeyboardInterrupt:
         print("\n\n❌ Analysis cancelled by user")

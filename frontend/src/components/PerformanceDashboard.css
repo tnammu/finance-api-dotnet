@@ -49,6 +49,48 @@
   border-color: #3b82f6;
 }
 
+.custom-period-form {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+}
+
+.custom-period-input {
+  width: 140px;
+  padding: 10px 12px;
+  border: 2px solid #e5e7eb;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  transition: all 0.3s;
+}
+
+.custom-period-input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.custom-period-input::placeholder {
+  color: #9ca3af;
+  font-weight: 500;
+}
+
+.custom-period-button {
+  padding: 10px 20px;
+  background: #10b981;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.3s;
+}
+
+.custom-period-button:hover {
+  background: #059669;
+}
+
 /* Metrics Grid */
 .metrics-grid {
   display: grid;
@@ -344,6 +386,27 @@
   .dashboard-header {
     flex-direction: column;
     gap: 20px;
+  }
+
+  .period-selector {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .period-selector button {
+    padding: 8px 16px;
+    font-size: 13px;
+  }
+
+  .custom-period-input {
+    width: 120px;
+    padding: 8px 10px;
+    font-size: 13px;
+  }
+
+  .custom-period-button {
+    padding: 8px 16px;
+    font-size: 13px;
   }
 
   .metrics-grid {

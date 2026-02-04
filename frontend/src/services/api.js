@@ -32,6 +32,30 @@ export const dividendsAPI = {
   getUsageHistory: (days) => api.get('/dividends/api-usage', { params: { days } }),
   getStats: () => api.get('/dividends/analytics'),
   deleteCached: (symbol) => api.delete(`/dividends/${symbol}`),
+  bulkImportTSX: () => api.post('/dividends/bulk-import/tsx'),
+};
+
+// Strategy API
+export const strategyAPI = {
+  getList: () => api.get('/strategy/list'),
+  analyzeAll: (symbol, capital = 100, years = 5, enforceBuyFirst = true) =>
+    api.get(`/strategy/analyze/${symbol}?capital=${capital}&years=${years}&enforceBuyFirst=${enforceBuyFirst}`),
+  analyzeSingle: (symbol, strategyType, capital = 100, years = 5) =>
+    api.get(`/strategy/single/${symbol}/${strategyType}?capital=${capital}&years=${years}`),
+  calculate: (symbol, strategyType, amounts, years = 5) =>
+    api.post('/strategy/calculator', { symbol, strategyType, amounts, years }),
+};
+
+// Sector API
+export const sectorAPI = {
+  getPerformances: (refresh = false) => api.get(`/sector/performances?refresh=${refresh}`),
+  getSectorPerformance: (sector, period = 'current') =>
+    api.get(`/sector/performance/${sector}?period=${period}`),
+  getStockComparison: (symbol) => api.get(`/sector/comparison/${symbol}`),
+  refreshStockComparison: (symbol) => api.post(`/sector/comparison/${symbol}/refresh`),
+  getTopPerformers: (sector, limit = 10) =>
+    api.get(`/sector/top-performers/${sector}?limit=${limit}`),
+  getSummary: () => api.get('/sector/summary'),
 };
 
 export default api;

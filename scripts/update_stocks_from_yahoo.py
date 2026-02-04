@@ -11,6 +11,7 @@ from datetime import datetime
 import time
 import sys
 import os
+import math
 
 # Set UTF-8 encoding for Windows console
 if sys.platform == "win32":
@@ -56,8 +57,130 @@ class StockDataUpdater:
             print(f"✗ Failed to retrieve stocks: {e}")
             return []
 
+    def calculate_payout_policy(self, payout_ratio, dividend_yield):
+        """Determine payout policy based on payout ratio and dividend yield"""
+        if payout_ratio is None or payout_ratio == 0:
+            if dividend_yield and dividend_yield > 0:
+                # Has dividend but no payout ratio (ETF or missing data)
+                return "Dividend Only", 100.0, 0.0
+            else:
+                # No dividends at all
+                return "Reinvestment Only", 0.0, 100.0
+
+        # Calculate allocation percentages
+        dividend_allocation = min(payout_ratio, 100.0)  # Cap at 100%
+        reinvestment_allocation = max(100.0 - payout_ratio, 0.0)  # Ensure non-negative
+
+        # Determine policy category
+        if payout_ratio >= 95:
+            policy = "Dividend Only"
+        elif payout_ratio <= 5:
+            policy = "Reinvestment Only"
+        else:
+            policy = "Mixed"
+
+        return policy, dividend_allocation, reinvestment_allocation
+
+    def calculate_safety_score(self, dividend_yield, payout_ratio, dividend_growth_rate, consecutive_years, beta):
+        """Calculate safety score based on dividend metrics (0-5 scale)"""
+        score = 0.0
+
+        # Dividend Yield Score (0-1 points) - Optimal range: 2-6%
+        if dividend_yield:
+            if 2.0 <= dividend_yield <= 6.0:
+                score += 1.0
+            elif 1.0 <= dividend_yield < 2.0 or 6.0 < dividend_yield <= 8.0:
+                score += 0.7
+            elif dividend_yield > 0:
+                score += 0.3
+
+        # Payout Ratio Score (0-1 points) - Lower is safer (< 60% is ideal)
+        if payout_ratio:
+            if payout_ratio < 50:
+                score += 1.0
+            elif payout_ratio < 60:
+                score += 0.8
+            elif payout_ratio < 75:
+                score += 0.5
+            elif payout_ratio < 90:
+                score += 0.3
+            # Over 90% gets 0 points
+        elif dividend_yield and dividend_yield > 0:
+            # If no payout ratio but has dividend, give partial credit
+            score += 0.5
+
+        # Dividend Growth Rate Score (0-1 points)
+        if dividend_growth_rate:
+            if dividend_growth_rate >= 10:
+                score += 1.0
+            elif dividend_growth_rate >= 5:
+                score += 0.8
+            elif dividend_growth_rate >= 0:
+                score += 0.5
+            # Negative growth gets 0 points
+
+        # Consecutive Years Score (0-1 points)
+        if consecutive_years >= 25:
+            score += 1.0
+        elif consecutive_years >= 10:
+            score += 0.8
+        elif consecutive_years >= 5:
+            score += 0.5
+        elif consecutive_years > 0:
+            score += 0.3
+
+        # Beta Score (0-1 points) - Lower volatility is better
+        if beta:
+            if beta < 0.8:
+                score += 1.0
+            elif beta < 1.0:
+                score += 0.8
+            elif beta < 1.2:
+                score += 0.5
+            elif beta < 1.5:
+                score += 0.3
+            # High beta gets 0 points
+
+        # Determine rating
+        if score >= 4.5:
+            rating = "Excellent"
+        elif score >= 3.5:
+            rating = "Very Good"
+        elif score >= 2.5:
+            rating = "Good"
+        elif score >= 1.5:
+            rating = "Fair"
+        elif score >= 0.5:
+            rating = "Below Average"
+        else:
+            rating = "Poor"
+
+        # Generate recommendation
+        if score >= 4.0:
+            recommendation = "Strong dividend stock with excellent safety metrics. Suitable for income-focused portfolios."
+        elif score >= 3.0:
+            recommendation = "Good dividend stock with solid fundamentals. Consider for balanced income portfolios."
+        elif score >= 2.0:
+            recommendation = "Acceptable dividend stock but monitor closely. Suitable for moderate risk tolerance."
+        elif score >= 1.0:
+            recommendation = "Below average dividend metrics. Higher risk - consider alternatives."
+        else:
+            recommendation = "Poor dividend safety. High risk - not recommended for income investors."
+
+        return round(score, 2), rating, recommendation
+
     def fetch_yahoo_data(self, symbol):
         """Fetch stock data from Yahoo Finance with advanced metrics"""
+        def safe_float(value, default=None):
+            if value is None:
+                return default
+            try:
+                f = float(value)
+                if math.isinf(f) or math.isnan(f):
+                    return default
+                return f
+            except (ValueError, TypeError):
+                return default
         try:
             # Create ticker object
             ticker = yf.Ticker(symbol)
@@ -95,7 +218,13 @@ class StockDataUpdater:
                 industry = info.get('industry', 'Unknown')
 
             # Get beta
-            beta = info.get('beta')
+            beta = safe_float(info.get('beta'))
+
+            # Get valuation metrics  
+            pe_ratio = safe_float(info.get('trailingPE')) or safe_float(info.get('forwardPE'))
+            pb_ratio = safe_float(info.get('priceToBook'))
+            market_cap = safe_float(info.get('marketCap'))
+            earnings_growth = safe_float(info.get('earningsGrowth'))
 
             # Calculate dividend per share (prefer most current source)
             dividend_per_share = None
@@ -189,6 +318,25 @@ class StockDataUpdater:
             except Exception as e:
                 print(f"    ⚠️  Could not fetch historical EPS: {e}")
 
+            # Calculate Safety Score
+            safety_score, safety_rating, recommendation = self.calculate_safety_score(
+                float(dividend_yield) if dividend_yield else None,
+                payout_ratio,
+                dividend_growth_rate,
+                consecutive_years,
+                float(beta) if beta else None
+            )
+
+            if safety_score > 0:
+                print(f"    ⭐ Safety Score: {safety_score:.1f}/5.0 ({safety_rating})")
+
+            # Calculate Payout Policy
+            payout_policy, dividend_allocation, reinvestment_allocation = self.calculate_payout_policy(
+                payout_ratio,
+                float(dividend_yield) if dividend_yield else None
+            )
+            print(f"    📊 Payout Policy: {payout_policy} (Dividend: {dividend_allocation:.1f}%, Reinvestment: {reinvestment_allocation:.1f}%)")
+
             return {
                 'price': float(current_price),
                 'company_name': company_name,
@@ -200,7 +348,20 @@ class StockDataUpdater:
                 'consecutive_years': consecutive_years,
                 'sector': sector,
                 'industry': industry,
-                'beta': float(beta) if beta else None,
+                'beta': beta,
+                # Valuation metrics
+                'pe_ratio': pe_ratio if pe_ratio else 0.0,
+                'pb_ratio': pb_ratio if pb_ratio else 0.0,
+                'market_cap': market_cap if market_cap else 0.0,
+                'earnings_growth': (earnings_growth * 100) if earnings_growth else 0.0,  # Convert to percentage
+                # Payout policy
+                'payout_policy': payout_policy,
+                'dividend_allocation_pct': dividend_allocation,
+                'reinvestment_allocation_pct': reinvestment_allocation,
+                # Safety
+                'safety_score': safety_score,
+                'safety_rating': safety_rating,
+                'recommendation': recommendation,
                 'yearly_dividends': yearly_dividends_data,  # {year: dividend_amount}
                 'annual_eps': annual_eps_data,  # {year: eps}
                 'last_updated': datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
@@ -230,6 +391,16 @@ class StockDataUpdater:
                     Sector = ?,
                     Industry = ?,
                     Beta = ?,
+                    PE = ?,
+                    PB = ?,
+                    MarketCap = ?,
+                    EarningsGrowth = ?,
+                    PayoutPolicy = ?,
+                    DividendAllocationPct = ?,
+                    ReinvestmentAllocationPct = ?,
+                    SafetyScore = ?,
+                    SafetyRating = ?,
+                    Recommendation = ?,
                     LastUpdated = ?
                 WHERE Id = ?
             """
@@ -245,6 +416,16 @@ class StockDataUpdater:
                 data.get('sector', 'Unknown'),
                 data.get('industry', 'Unknown'),
                 data.get('beta'),
+                data.get('pe_ratio', 0.0),
+                data.get('pb_ratio', 0.0),
+                data.get('market_cap', 0.0),
+                data.get('earnings_growth', 0.0),
+                data.get('payout_policy', 'Unknown'),
+                data.get('dividend_allocation_pct'),
+                data.get('reinvestment_allocation_pct'),
+                data.get('safety_score', 0.0),
+                data.get('safety_rating', 'N/A'),
+                data.get('recommendation', 'No data available'),
                 data['last_updated'],
                 stock_id
             ))
@@ -337,18 +518,17 @@ class StockDataUpdater:
     def insert_stock(self, symbol, data):
         """Insert new stock into database"""
         try:
-            # Calculate a basic safety score
-            safety_score = self.calculate_safety_score(data)
-            safety_rating = self.get_safety_rating(safety_score)
-
             query = """
                 INSERT INTO DividendModels (
                     Symbol, CompanyName, CurrentPrice, DividendYield, DividendPerShare,
                     PayoutRatio, EPS, ProfitMargin, Beta,
+                    PE, PB, MarketCap, EarningsGrowth,
+                    PayoutPolicy, DividendAllocationPct, ReinvestmentAllocationPct,
                     Sector, Industry, ConsecutiveYearsOfPayments, DividendGrowthRate,
+                    GrowthScore, GrowthRating,
                     SafetyScore, SafetyRating, Recommendation,
                     FetchedAt, LastUpdated, ApiCallsUsed
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """
             self.cursor.execute(query, (
                 symbol,
@@ -360,13 +540,22 @@ class StockDataUpdater:
                 data.get('eps'),
                 None,       # ProfitMargin - not available from basic Yahoo data
                 data.get('beta'),
+                data.get('pe_ratio', 0.0),
+                data.get('pb_ratio', 0.0),
+                data.get('market_cap', 0.0),
+                data.get('earnings_growth', 0.0),
+                data.get('payout_policy', 'Unknown'),
+                data.get('dividend_allocation_pct'),
+                data.get('reinvestment_allocation_pct'),
                 data.get('sector', 'Unknown'),
                 data.get('industry', 'Unknown'),
                 data.get('consecutive_years', 0),
                 data.get('dividend_growth_rate'),
-                safety_score,
-                safety_rating,
-                self.generate_recommendation(data, safety_score),
+                0.0,        # GrowthScore - not calculated for dividend stocks
+                'N/A',      # GrowthRating - not calculated for dividend stocks
+                data.get('safety_score', 0.0),
+                data.get('safety_rating', 'N/A'),
+                data.get('recommendation', 'No data available'),
                 data['last_updated'],
                 data['last_updated'],
                 0
@@ -383,101 +572,6 @@ class StockDataUpdater:
         except Exception as e:
             print(f"  ✗ Failed to insert: {e}")
             return False
-
-    def calculate_safety_score(self, data):
-        """Calculate a basic safety score (0-5) based on available metrics"""
-        score = 0
-        criteria_count = 0
-
-        # Dividend yield scoring (0-1 points)
-        if data.get('dividend_yield') is not None:
-            criteria_count += 1
-            dy = data['dividend_yield']
-            if 2 <= dy <= 6:
-                score += 1.0
-            elif 1 <= dy < 8:
-                score += 0.5
-
-        # Payout ratio scoring (0-1 points) - skip for ETFs
-        if data.get('payout_ratio') is not None:
-            criteria_count += 1
-            pr = data['payout_ratio']
-            if pr < 60:
-                score += 1.0
-            elif pr < 75:
-                score += 0.6
-            elif pr < 90:
-                score += 0.3
-
-        # Dividend growth rate scoring (0-1 points)
-        if data.get('dividend_growth_rate') is not None:
-            criteria_count += 1
-            dgr = data['dividend_growth_rate']
-            if dgr > 5:
-                score += 1.0
-            elif dgr > 0:
-                score += 0.7
-            elif dgr >= -2:
-                score += 0.3
-
-        # Consecutive years scoring (0-1 points)
-        cy = data.get('consecutive_years', 0)
-        if cy > 0:  # Only count if there are consecutive years
-            criteria_count += 1
-            if cy >= 10:
-                score += 1.0
-            elif cy >= 5:
-                score += 0.7
-            elif cy >= 3:
-                score += 0.4
-
-        # Beta scoring (0-1 points)
-        if data.get('beta') is not None:
-            criteria_count += 1
-            beta = data['beta']
-            if beta < 0.8:
-                score += 1.0
-            elif beta < 1.0:
-                score += 0.7
-            elif beta < 1.3:
-                score += 0.4
-
-        return (score / criteria_count) * 5 if criteria_count > 0 else 2.5  # Default to 2.5 if no criteria
-
-    def get_safety_rating(self, score):
-        """Convert safety score to rating"""
-        if score >= 4.5:
-            return "Excellent"
-        elif score >= 4.0:
-            return "Very Good"
-        elif score >= 3.5:
-            return "Good"
-        elif score >= 3.0:
-            return "Fair"
-        elif score >= 2.0:
-            return "Below Average"
-        else:
-            return "Poor"
-
-    def generate_recommendation(self, data, safety_score):
-        """Generate a recommendation based on metrics"""
-        recommendations = []
-
-        if safety_score >= 4.0:
-            recommendations.append("Strong dividend candidate")
-        elif safety_score >= 3.0:
-            recommendations.append("Solid dividend payer")
-        else:
-            recommendations.append("Moderate quality")
-
-        dy = data.get('dividend_yield')
-        if dy is not None:
-            if dy > 8:
-                recommendations.append("⚠️ Very high yield")
-            elif 2 <= dy <= 6:
-                recommendations.append("✓ Optimal yield range")
-
-        return "; ".join(recommendations) if recommendations else "Needs analysis"
 
     def update_all_stocks(self):
         """Main function to update all stocks"""
