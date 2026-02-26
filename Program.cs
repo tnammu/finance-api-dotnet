@@ -9,7 +9,13 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowReactApp", policy =>
     {
-        policy.WithOrigins("http://localhost:3000", "http://localhost:5199", "https://localhost:7065")
+        policy.WithOrigins(
+                  "http://localhost:3000",
+                  "http://localhost:5199",
+                  "https://localhost:7065",
+                  "http://frontend:80",
+                  "http://host.docker.internal:3000"
+              )
               .AllowAnyHeader()
               .AllowAnyMethod()
               .AllowCredentials();
@@ -48,9 +54,12 @@ builder.Services.AddScoped<SP500Service>();
 builder.Services.AddScoped<GrowthStockService>();
 builder.Services.AddScoped<StrategyService>();
 builder.Services.AddScoped<SectorAnalysisService>();
-builder.Services.AddScoped<CommodityService>();
-builder.Services.AddScoped<TrendingStockService>();
 builder.Services.AddScoped<StocksService>();
+builder.Services.AddScoped<RedditSentimentService>();
+builder.Services.AddScoped<SmsNotificationService>();
+builder.Services.AddScoped<StockAlertService>();
+builder.Services.AddScoped<PortfolioService>();
+builder.Services.AddHostedService<StockAlertSchedulerService>();
 
 // Add Swagger
 builder.Services.AddEndpointsApiExplorer();

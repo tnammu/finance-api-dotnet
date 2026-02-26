@@ -167,3 +167,9 @@ npm start  # Hot reload enabled
 ## License
 
 Educational and personal use.
+
+
+docker compose up -d       # Start containers
+docker compose down        # Stop containers
+docker compose logs -f     # Follow logs
+docker compose build       # Rebuild after code changes

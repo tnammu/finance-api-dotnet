@@ -5,6 +5,8 @@ import DividendAnalysis from './components/DividendAnalysis';
 import GrowthAnalysis from './components/GrowthAnalysis';
 import EtfAnalysis from './components/EtfAnalysis';
 import SP500Analysis from './components/SP500Analysis';
+import StockAlerts from './components/StockAlerts';
+import Portfolio from './components/Portfolio';
 import './App.css';
 
 function App() {
@@ -46,6 +48,18 @@ function App() {
             >
               S&P 500 Index
             </button>
+            <button
+              className={activeTab === 'alerts' ? 'active' : ''}
+              onClick={() => setActiveTab('alerts')}
+            >
+              Stock Alerts
+            </button>
+            <button
+              className={activeTab === 'portfolio' ? 'active' : ''}
+              onClick={() => setActiveTab('portfolio')}
+            >
+              My Portfolio
+            </button>
           </nav>
         </header>
 
@@ -55,6 +69,8 @@ function App() {
           {activeTab === 'growth' && <GrowthAnalysis />}
           {activeTab === 'etf' && <EtfAnalysis />}
           {activeTab === 'sp500' && <SP500Analysis />}
+          {activeTab === 'alerts' && <StockAlerts />}
+          {activeTab === 'portfolio' && <Portfolio />}
         </main>
       </div>
     </Router>

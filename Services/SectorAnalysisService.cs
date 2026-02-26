@@ -262,6 +262,50 @@ namespace FinanceApi.Services
                 .FirstOrDefaultAsync(ssc => ssc.Symbol == symbol);
         }
 
+        /// <summary>
+        /// Get cached performances, calculating on first run or when refresh is requested.
+        /// </summary>
+        public async Task<List<SectorPerformance>> GetOrCalculateAllSectorPerformancesAsync(bool refresh = false)
+        {
+            if (refresh)
+                return await CalculateAllSectorPerformances();
+
+            var performances = await GetAllSectorPerformances();
+            return performances.Any() ? performances : await CalculateAllSectorPerformances();
+        }
+
+        /// <summary>
+        /// Get cached sector performance, calculating if not found.
+        /// </summary>
+        public async Task<SectorPerformance?> GetOrCalculateSectorPerformanceAsync(string sector, string period = "current")
+        {
+            var performance = await GetSectorPerformance(sector, period);
+            if (performance != null) return performance;
+
+            await CalculateAllSectorPerformances(period);
+            return await GetSectorPerformance(sector, period);
+        }
+
+        /// <summary>
+        /// Build summary statistics across all sectors.
+        /// </summary>
+        public async Task<object> GetSectorSummaryAsync()
+        {
+            var performances = await GetOrCalculateAllSectorPerformancesAsync();
+
+            return new
+            {
+                totalSectors = performances.Count,
+                bestPerformingSector = performances.OrderByDescending(p => p.AverageReturn).FirstOrDefault(),
+                worstPerformingSector = performances.OrderBy(p => p.AverageReturn).FirstOrDefault(),
+                highestYieldSector = performances.OrderByDescending(p => p.AverageDividendYield).FirstOrDefault(),
+                lowestVolatilitySector = performances.OrderBy(p => p.Volatility).FirstOrDefault(),
+                totalMarketCap = performances.Sum(p => p.TotalMarketCap),
+                totalStocks = performances.Sum(p => p.StockCount),
+                calculatedAt = performances.FirstOrDefault()?.CalculatedAt ?? DateTime.UtcNow
+            };
+        }
+
         // Helper methods for calculations
         private decimal CalculateAverageReturn(List<DividendModel> stocks)
         {

@@ -237,19 +237,84 @@ The script automatically:
 
 ---
 
+### 5. bulk_import_us_stocks.py
+
+**Purpose:** Bulk import all US exchange stocks (NASDAQ, NYSE, NYSE MKT, NYSE ARCA, BATS, IEX) into the dividend database.
+
+**How it works:**
+1. Fetches stock listings from two NASDAQ FTP sources:
+   - `nasdaqlisted.txt` — NASDAQ-listed stocks (~3,500–4,000)
+   - `otherlisted.txt` — NYSE, NYSE MKT, NYSE ARCA, BATS, IEX stocks (~3,000–4,000)
+2. Filters out test issues, special symbols (`$`, `.`, `^`), and symbols longer than 5 characters
+3. Calls `GET /api/dividends/analyze/{symbol}` for each stock with rate limiting
+4. Saves a JSON report (`us_import_report_YYYYMMDD_HHMMSS.json`) on completion
+
+**Total stocks:** ~6,500–8,000 depending on current exchange listings
+
+**Rate limiting:** 2 seconds between requests (~30 stocks/minute). Full import takes approximately **4–5 hours**.
+
+**Configuration:**
+
+| Setting | Default | Description |
+|---|---|---|
+| `API_BASE_URL` | `http://localhost:5000` | Backend API URL |
+| `DELAY_BETWEEN_REQUESTS` | `2.0` seconds | Rate limit delay between API calls |
+| `PROGRESS_REPORT_INTERVAL` | `50` | Print progress summary every N stocks |
+
+**Prerequisites:**
+- .NET API running on `http://localhost:5000`
+- Python 3 with `requests` installed (`pip install requests`)
+
+**Usage:**
+```cmd
+cd scripts
+python bulk_import_us_stocks.py
+```
+
+**Output:**
+- Live progress per stock with success/failure status
+- Summary every 50 stocks with elapsed time and ETA
+- Final JSON report with exchange breakdown and list of failed symbols
+
+---
+
 ## Recommended Workflow
 
 ### First Time Setup
-1. Run `fetch_index_data.py` to populate benchmark index data (S&P 500, etc.)
-2. Run `fetch_sp500_stocks.py` to populate database with all S&P 500 companies
-3. Wait for completion (~15-30 minutes)
-4. Use the C# API to perform full analysis: `GET /api/dividends/analyze/{symbol}`
+
+```cmd
+cd scripts
+
+:: 1. Populate benchmark index data (S&P 500, Dow Jones, etc.)
+python fetch_index_data.py
+
+:: 2. Populate database with all S&P 500 companies (~15-30 minutes)
+python fetch_sp500_stocks.py
+
+:: 3. (Optional) Bulk import all US stocks (~4-5 hours)
+python bulk_import_us_stocks.py
+
+:: 4. (Optional) Bulk import TSX Canadian stocks
+python bulk_import_tsx_major.py
+```
 
 ### Regular Maintenance
-1. Run `fetch_index_data.py` weekly to update benchmark performance
-2. Run `update_stocks_from_yahoo.py` daily/weekly to refresh stock prices
-3. Run `sp500_validator.py` to check portfolio composition
-4. Use C# API for detailed dividend analysis and stock vs. benchmark comparison
+
+```cmd
+cd scripts
+
+:: Update benchmark performance (weekly)
+python fetch_index_data.py
+
+:: Refresh stock prices (daily/weekly)
+python update_stocks_from_yahoo.py
+
+:: Check portfolio composition against S&P 500
+python sp500_validator.py
+
+:: Update Reddit sentiment data
+python update_reddit_sentiment.py
+```
 
 ---
 

@@ -58,4 +58,12 @@ export const sectorAPI = {
   getSummary: () => api.get('/sector/summary'),
 };
 
+// Portfolio API
+export const portfolioAPI = {
+  getAll: () => api.get('/portfolio'),
+  add: (holding) => api.post('/portfolio', holding),
+  update: (id, holding) => api.put(`/portfolio/${id}`, holding),
+  remove: (id) => api.delete(`/portfolio/${id}`),
+};
+
 export default api;

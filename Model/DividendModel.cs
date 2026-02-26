@@ -55,6 +55,20 @@ namespace FinanceApi.Models
         public int ConsecutiveYearsOfPayments { get; set; }
         public decimal? DividendGrowthRate { get; set; }
 
+        // Swing Trading Metrics
+        public decimal? DailyVolatility { get; set; }
+        public int? SectorRank { get; set; }
+        public decimal? Week52High { get; set; }
+        public decimal? Week52Low { get; set; }
+        public decimal? Month1Low { get; set; }
+        public decimal? Month3Low { get; set; }
+        public decimal? SupportLevel1 { get; set; }
+        public decimal? SupportLevel1Volume { get; set; }
+        public decimal? SupportLevel2 { get; set; }
+        public decimal? SupportLevel2Volume { get; set; }
+        public decimal? SupportLevel3 { get; set; }
+        public decimal? SupportLevel3Volume { get; set; }
+
         // Safety Analysis
         public decimal SafetyScore { get; set; }
         public string SafetyRating { get; set; } = string.Empty;

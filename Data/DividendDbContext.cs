@@ -48,6 +48,14 @@ namespace FinanceApi.Data
         public DbSet<BacktestTrade> BacktestTrades { get; set; }
         public DbSet<CmeCostProfile> CmeCostProfiles { get; set; }
 
+        // Reddit Sentiment Tables
+        public DbSet<RedditSentimentModel> RedditSentiments { get; set; }
+        public DbSet<RedditMention> RedditMentions { get; set; }
+        public DbSet<RedditDailySummary> RedditDailySummaries { get; set; }
+
+        // Portfolio Holdings
+        public DbSet<HoldingModel> Holdings { get; set; }
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -253,6 +261,53 @@ namespace FinanceApi.Data
                 entity.ToTable("CmeCostProfiles");
                 entity.HasIndex(e => e.CommoditySymbol);
                 entity.HasIndex(e => e.IsActive);
+            });
+
+            // Configure RedditSentimentModel
+            modelBuilder.Entity<RedditSentimentModel>(entity =>
+            {
+                entity.ToTable("RedditSentiments");
+                entity.HasIndex(e => e.Symbol).IsUnique();
+                entity.HasIndex(e => e.LastUpdated);
+                entity.HasIndex(e => e.TrendingScore);
+                entity.HasIndex(e => e.MentionCount24h);
+            });
+
+            // Configure RedditMention
+            modelBuilder.Entity<RedditMention>(entity =>
+            {
+                entity.ToTable("RedditMentions");
+                entity.HasIndex(e => e.Symbol);
+                entity.HasIndex(e => e.PostId);
+                entity.HasIndex(e => e.Subreddit);
+                entity.HasIndex(e => e.CreatedAt);
+                entity.HasIndex(e => new { e.Symbol, e.PostId });
+
+                entity.HasOne(d => d.RedditSentiment)
+                    .WithMany(p => p.Mentions)
+                    .HasForeignKey(d => d.RedditSentimentModelId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            // Configure RedditDailySummary
+            modelBuilder.Entity<RedditDailySummary>(entity =>
+            {
+                entity.ToTable("RedditDailySummaries");
+                entity.HasIndex(e => e.Symbol);
+                entity.HasIndex(e => e.Date);
+                entity.HasIndex(e => new { e.Symbol, e.Date }).IsUnique();
+
+                entity.HasOne(d => d.RedditSentiment)
+                    .WithMany(p => p.DailySummaries)
+                    .HasForeignKey(d => d.RedditSentimentModelId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            // Configure HoldingModel
+            modelBuilder.Entity<HoldingModel>(entity =>
+            {
+                entity.ToTable("Holdings");
+                entity.HasIndex(e => e.Symbol);
             });
         }
     }
