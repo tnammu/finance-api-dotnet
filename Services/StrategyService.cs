@@ -191,6 +191,45 @@ namespace FinanceApi.Services
         }
 
         /// <summary>
+        /// Calculate returns for a strategy across multiple capital amounts.
+        /// Handles defaults and JSON extraction — keeps controller thin.
+        /// </summary>
+        public async Task<object> CalculateMultiCapitalAsync(
+            string symbol,
+            string? strategyType,
+            List<double>? amounts,
+            int? years)
+        {
+            symbol       = symbol.ToUpper();
+            strategyType = strategyType ?? "buyHold";
+            amounts      = amounts      ?? new List<double> { 100, 500, 1000, 5000 };
+            var period   = years        ?? 5;
+
+            var results = new List<object>();
+
+            foreach (var amount in amounts)
+            {
+                var analysis = await CalculateSingleStrategyAsync(symbol, strategyType, amount, period);
+                if (analysis == null) continue;
+                if (!analysis.RootElement.TryGetProperty("strategy", out var strategyElement)) continue;
+
+                var strategyData = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(strategyElement.GetRawText());
+                if (strategyData == null) continue;
+
+                results.Add(new
+                {
+                    capital     = amount,
+                    finalValue  = strategyData.TryGetValue("finalValue",  out var fv)  ? fv.GetDouble()  : 0,
+                    totalReturn = strategyData.TryGetValue("totalReturn", out var tr)  ? tr.GetDouble()  : 0,
+                    profit      = strategyData.TryGetValue("finalValue",  out var fv2) ? fv2.GetDouble() - amount : 0,
+                    winRate     = strategyData.TryGetValue("winRate",     out var wr)  ? wr.GetDouble()  : 0,
+                });
+            }
+
+            return new { success = true, symbol, strategyType, years = period, calculations = results };
+        }
+
+        /// <summary>
         /// Get available strategy types
         /// </summary>
         public List<StrategyInfo> GetAvailableStrategies()

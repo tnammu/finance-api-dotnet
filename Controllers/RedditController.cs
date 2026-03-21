@@ -84,7 +84,7 @@ namespace FinanceApi.Controllers
                     trending = new
                     {
                         score = sentiment.TrendingScore,
-                        topKeywords = sentiment.TopKeywords24h?.Split(',', StringSplitOptions.RemoveEmptyEntries).ToList() ?? new List<string>()
+                        topKeywords = sentiment.TopKeywordsList
                     },
 
                     recentMentions = sentiment.RecentMentions.Select(m => new
@@ -93,7 +93,7 @@ namespace FinanceApi.Controllers
                         subreddit = m.Subreddit,
                         author = m.Author,
                         title = m.Title,
-                        content = m.Content.Length > 200 ? m.Content.Substring(0, 200) + "..." : m.Content,
+                        content = m.TruncatedContent,
                         createdAt = m.CreatedAt,
                         upvotes = m.Upvotes,
                         score = m.Score,
@@ -143,7 +143,7 @@ namespace FinanceApi.Controllers
                         trendingScore = s.TrendingScore,
                         positiveRatio = s.PositiveRatio,
                         lastUpdated = s.LastUpdated,
-                        hoursOld = (DateTime.UtcNow - s.LastUpdated).TotalHours
+                        hoursOld = s.HoursOld
                     }).ToList()
                 });
             }
@@ -185,7 +185,7 @@ namespace FinanceApi.Controllers
                         mentionCount = s.MentionCount24h,
                         positiveRatio = s.PositiveRatio,
                         lastUpdated = s.LastUpdated,
-                        hoursOld = (DateTime.UtcNow - s.LastUpdated).TotalHours
+                        hoursOld = s.HoursOld
                     }).ToList()
                 });
             }
@@ -215,42 +215,15 @@ namespace FinanceApi.Controllers
                     return BadRequest(new { error = "Maximum 20 symbols allowed per bulk request" });
                 }
 
-                var results = new List<object>();
-                var failed = new List<string>();
-
-                foreach (var symbol in symbols)
-                {
-                    // Rate limiting (Reddit API: 60 requests/minute)
-                    await Task.Delay(1000);  // 1 second between requests
-
-                    var sentiment = await _redditService.GetSentimentAsync(symbol, forceRefresh: false);
-
-                    if (sentiment != null)
-                    {
-                        results.Add(new
-                        {
-                            symbol = sentiment.Symbol,
-                            sentiment24h = sentiment.Sentiment24h,
-                            sentimentRating = sentiment.SentimentRating24h,
-                            mentionCount = sentiment.MentionCount24h,
-                            trendingScore = sentiment.TrendingScore,
-                            positiveRatio = sentiment.PositiveRatio,
-                            lastUpdated = sentiment.LastUpdated
-                        });
-                    }
-                    else
-                    {
-                        failed.Add(symbol);
-                    }
-                }
+                var (results, failed) = await _redditService.BulkFetchSentimentAsync(symbols);
 
                 return Ok(new
                 {
-                    requested = symbols.Count,
-                    successful = results.Count,
-                    failed = failed.Count,
-                    failedSymbols = failed,
-                    results = results
+                    requested    = symbols.Count,
+                    successful   = results.Count,
+                    failed       = failed.Count,
+                    failedSymbols= failed,
+                    results
                 });
             }
             catch (Exception ex)

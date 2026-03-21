@@ -57,3 +57,8 @@ nul
 # Local settings
 .claude/settings.local.json
 appsettings.Development.json
+
+# Generated analysis output
+scripts/picks_result.json
+scripts/*.json
+scripts/*.png

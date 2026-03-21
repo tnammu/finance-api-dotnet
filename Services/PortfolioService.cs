@@ -29,26 +29,44 @@ namespace FinanceApi.Services
             var holdings = await _db.Holdings.OrderBy(h => h.Symbol).ToListAsync();
 
             var symbols = holdings.Select(h => h.Symbol).ToList();
+            // Also look up with .TO suffix for Canadian stocks imported from Wealthsimple
+            var symbolsWithTo = symbols.Select(s => s.EndsWith(".TO") ? s : s + ".TO").ToList();
+            var allLookupSymbols = symbols.Concat(symbolsWithTo).Distinct().ToList();
+
             var stockData = await _db.DividendModels
-                .Where(d => symbols.Contains(d.Symbol))
+                .Where(d => allLookupSymbols.Contains(d.Symbol))
                 .Select(d => new { d.Symbol, d.CompanyName, d.CurrentPrice, d.DividendPerShare, d.Sector })
                 .ToDictionaryAsync(d => d.Symbol);
 
             var enriched = holdings.Select(h =>
             {
-                stockData.TryGetValue(h.Symbol, out var stock);
-                var currentPrice = stock != null ? (decimal?)stock.CurrentPrice : null;
+                // Try exact match first, then with .TO suffix
+                if (!stockData.TryGetValue(h.Symbol, out var stock))
+                    stockData.TryGetValue(h.Symbol + ".TO", out stock);
+
+                // Use DividendModels price if available and non-zero, else fall back to stored MarketPrice
+                var currentPrice = (stock != null && stock.CurrentPrice > 0)
+                    ? (decimal?)stock.CurrentPrice
+                    : h.MarketPrice;
                 var totalCost = h.Shares * h.BuyPrice;
                 var currentValue = currentPrice.HasValue ? h.Shares * currentPrice.Value : (decimal?)null;
                 var gainLossDollar = currentValue.HasValue ? currentValue.Value - totalCost : (decimal?)null;
                 var gainLossPct = gainLossDollar.HasValue && totalCost > 0
                     ? Math.Round(gainLossDollar.Value / totalCost * 100, 2)
                     : (decimal?)null;
-                var annualDividendIncome = stock != null && stock.DividendPerShare.HasValue
-                    ? Math.Round(h.Shares * stock.DividendPerShare!.Value, 2)
+                // Dividend per share: prefer DividendModels, fall back to Holdings.AnnualDividendPerShare
+                var divPerShare = (stock != null && stock.DividendPerShare.HasValue && stock.DividendPerShare.Value > 0)
+                    ? stock.DividendPerShare
+                    : h.AnnualDividendPerShare;
+
+                var annualDividendIncome = divPerShare.HasValue
+                    ? Math.Round(h.Shares * divPerShare.Value, 2)
                     : (decimal?)null;
-                var dividendYield = stock != null && stock.DividendPerShare.HasValue && stock.CurrentPrice > 0
-                    ? Math.Round(stock.DividendPerShare!.Value / stock.CurrentPrice * 100, 2)
+
+                // Yield = div / current price (use whichever price source we have)
+                var priceForYield = currentPrice ?? (stock != null ? (decimal?)stock.CurrentPrice : null);
+                var dividendYield = divPerShare.HasValue && priceForYield.HasValue && priceForYield.Value > 0
+                    ? Math.Round(divPerShare.Value / priceForYield.Value * 100, 2)
                     : (decimal?)null;
 
                 return new

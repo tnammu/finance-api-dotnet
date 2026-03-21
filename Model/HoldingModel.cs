@@ -20,5 +20,11 @@ namespace FinanceApi.Model
         public string? Notes { get; set; }
 
         public DateTime AddedAt { get; set; } = DateTime.UtcNow;
+
+        /// <summary>Last known market price (CAD), imported from holdings report.</summary>
+        public decimal? MarketPrice { get; set; }
+
+        /// <summary>Annual dividend per share (CAD), fetched from Yahoo Finance.</summary>
+        public decimal? AnnualDividendPerShare { get; set; }
     }
 }

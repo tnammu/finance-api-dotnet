@@ -486,6 +486,7 @@ namespace FinanceApi.Services
         public DateTime? LastUpdated { get; set; }
         public bool IsLive { get; set; }
         public string? Source { get; set; }
+        public bool IsError => Status is "Failed" or "Error";
     }
 
     public class BulkImportResult
@@ -510,6 +511,8 @@ namespace FinanceApi.Services
     public class AddStockResult
     {
         public string Status { get; set; } = string.Empty;
+        public bool IsError    => Status is "Failed" or "Error";
+        public bool IsConflict => Status == "Conflict";
         public string? Message { get; set; }
         public int Id { get; set; }
         public string Symbol { get; set; } = string.Empty;

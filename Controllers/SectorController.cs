@@ -60,8 +60,7 @@ namespace FinanceApi.Controllers
         {
             try
             {
-                var comparison = await _sectorService.GetStockSectorComparison(symbol)
-                    ?? await _sectorService.CalculateStockSectorComparison(symbol);
+                var comparison = await _sectorService.GetOrCalculateStockSectorComparisonAsync(symbol);
 
                 if (comparison == null)
                     return NotFound(new { error = $"Stock '{symbol}' not found or has no sector" });

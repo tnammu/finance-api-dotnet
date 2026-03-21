@@ -19,8 +19,8 @@ namespace FinanceApi.Controllers
             ILogger<DividendsController> logger)
         {
             _dividendService = dividendService;
-            _dbContext = dbContext;
-            _logger = logger;
+            _dbContext       = dbContext;
+            _logger          = logger;
         }
 
         /// <summary>
@@ -495,103 +495,15 @@ namespace FinanceApi.Controllers
         [HttpGet("export")]
         public async Task<IActionResult> ExportToCsv([FromQuery] string type = "analyses", [FromQuery] string? symbol = null)
         {
-            var csv = new System.Text.StringBuilder();
-            string fileName;
-
-            switch (type.ToLower())
+            try
             {
-                case "analyses":
-                    var dividends = await _dbContext.DividendModels
-                        .OrderByDescending(d => d.SafetyScore)
-                        .ToListAsync();
-
-                    csv.AppendLine("Symbol,Company Name,Sector,Industry,Dividend Yield (%),Payout Ratio (%),Safety Score,Safety Rating," +
-                                  "Consecutive Years,Growth Rate (%),Last Updated,Days Old");
-
-                    foreach (var div in dividends)
-                    {
-                        var daysOld = (DateTime.UtcNow - div.LastUpdated).TotalDays;
-                        var dividendYield = div.DividendYield.HasValue ? div.DividendYield.Value.ToString("F2") : "";
-                        var payoutRatio = div.PayoutRatio.HasValue ? div.PayoutRatio.Value.ToString("F2") : "";
-                        var growthRate = div.DividendGrowthRate.HasValue ? div.DividendGrowthRate.Value.ToString("F2") : "";
-
-                        csv.AppendLine($"{div.Symbol}," +
-                                      $"\"{div.CompanyName}\"," +
-                                      $"\"{div.Sector}\"," +
-                                      $"\"{div.Industry}\"," +
-                                      $"{dividendYield}," +
-                                      $"{payoutRatio}," +
-                                      $"{div.SafetyScore:F2}," +
-                                      $"\"{div.SafetyRating}\"," +
-                                      $"{div.ConsecutiveYearsOfPayments}," +
-                                      $"{growthRate}," +
-                                      $"{div.LastUpdated:yyyy-MM-dd HH:mm:ss}," +
-                                      $"{daysOld:F1}");
-                    }
-
-                    fileName = $"dividends_analyses_{DateTime.UtcNow:yyyyMMdd_HHmmss}.csv";
-                    break;
-
-                case "payments":
-                    var query = _dbContext.DividendPayments.AsQueryable();
-
-                    if (!string.IsNullOrEmpty(symbol))
-                    {
-                        query = query.Where(p => p.Symbol == symbol.ToUpper());
-                    }
-
-                    var payments = await query
-                        .OrderBy(p => p.Symbol)
-                        .ThenByDescending(p => p.PaymentDate)
-                        .ToListAsync();
-
-                    csv.AppendLine("Symbol,Payment Date,Amount,Year,Quarter");
-
-                    foreach (var payment in payments)
-                    {
-                        var quarter = (payment.PaymentDate.Month - 1) / 3 + 1;
-                        csv.AppendLine($"{payment.Symbol}," +
-                                      $"{payment.PaymentDate:yyyy-MM-dd}," +
-                                      $"{payment.Amount:F4}," +
-                                      $"{payment.PaymentDate.Year}," +
-                                      $"Q{quarter}");
-                    }
-
-                    fileName = string.IsNullOrEmpty(symbol)
-                        ? $"dividend_payments_all_{DateTime.UtcNow:yyyyMMdd_HHmmss}.csv"
-                        : $"dividend_payments_{symbol}_{DateTime.UtcNow:yyyyMMdd_HHmmss}.csv";
-                    break;
-
-                case "usage":
-                    var usage = await _dbContext.ApiUsageLogs
-                        .OrderByDescending(u => u.Date)
-                        .ToListAsync();
-
-                    csv.AppendLine("Date,Calls Used,Daily Limit,Remaining,Percentage Used (%),Notes");
-
-                    foreach (var log in usage)
-                    {
-                        var remaining = log.DailyLimit - log.CallsUsed;
-                        var percentUsed = (log.CallsUsed * 100.0 / log.DailyLimit);
-                        var notes = log.Notes ?? "";
-
-                        csv.AppendLine($"{log.Date:yyyy-MM-dd}," +
-                                      $"{log.CallsUsed}," +
-                                      $"{log.DailyLimit}," +
-                                      $"{remaining}," +
-                                      $"{percentUsed:F1}," +
-                                      $"\"{notes}\"");
-                    }
-
-                    fileName = $"api_usage_{DateTime.UtcNow:yyyyMMdd_HHmmss}.csv";
-                    break;
-
-                default:
-                    return BadRequest(new { error = $"Invalid export type: {type}. Valid types are: analyses, payments, usage" });
+                var (bytes, fileName) = await _dividendService.ExportToCsvAsync(type, symbol);
+                return File(bytes, "text/csv", fileName);
             }
-
-            var bytes = System.Text.Encoding.UTF8.GetBytes(csv.ToString());
-            return File(bytes, "text/csv", fileName);
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { error = ex.Message });
+            }
         }
 
         /// <summary>

@@ -154,18 +154,7 @@ namespace FinanceApi.Controllers
                     return BadRequest(new { error = "Symbols parameter required (comma-separated)" });
                 }
 
-                var symbolList = symbols.ToUpper()
-                    .Split(',')
-                    .Select(s => s.Trim())
-                    .Where(s => !string.IsNullOrWhiteSpace(s))
-                    .ToList();
-
-                if (symbolList.Count == 0)
-                {
-                    return BadRequest(new { error = "No valid symbols provided" });
-                }
-
-                var result = await _growthService.CompareGrowthStocksAsync(symbolList);
+                var result = await _growthService.CompareGrowthStocksAsync(symbols);
 
                 return Ok(new
                 {
@@ -253,20 +242,16 @@ namespace FinanceApi.Controllers
             {
                 symbol = symbol.ToUpper();
 
-                var validPeriods = new[] { "1d", "5d", "1wk", "1mo", "ytd", "1y", "5y" };
-                if (!validPeriods.Contains(period.ToLower()))
-                {
-                    return BadRequest(new { error = "Invalid period. Supported: 1d, 5d, 1wk, 1mo, ytd, 1y, 5y" });
-                }
-
                 var result = await _growthService.GetEtfIntradayDataAsync(symbol, period);
 
                 if (result == null)
-                {
                     return StatusCode(500, new { error = "Failed to fetch intraday data" });
-                }
 
                 return Ok(result.RootElement);
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { error = ex.Message });
             }
             catch (Exception ex)
             {

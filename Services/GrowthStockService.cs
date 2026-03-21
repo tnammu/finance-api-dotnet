@@ -236,6 +236,16 @@ namespace FinanceApi.Services
         /// <summary>
         /// Compare multiple stocks' growth metrics
         /// </summary>
+        public async Task<GrowthComparisonResult> CompareGrowthStocksAsync(string symbolsCsv)
+        {
+            var symbols = symbolsCsv.ToUpper()
+                .Split(',')
+                .Select(s => s.Trim())
+                .Where(s => !string.IsNullOrWhiteSpace(s))
+                .ToList();
+            return await CompareGrowthStocksAsync(symbols);
+        }
+
         public async Task<GrowthComparisonResult> CompareGrowthStocksAsync(List<string> symbols)
         {
             var stocks = await _dbContext.DividendModels
@@ -343,8 +353,12 @@ namespace FinanceApi.Services
         /// <summary>
         /// Get intraday data for an ETF
         /// </summary>
+        private static readonly string[] ValidPeriods = { "1d", "5d", "1wk", "1mo", "ytd", "1y", "5y" };
+
         public async Task<JsonDocument?> GetEtfIntradayDataAsync(string symbol, string period)
         {
+            if (!ValidPeriods.Contains(period.ToLower()))
+                throw new ArgumentException("Invalid period. Supported: 1d, 5d, 1wk, 1mo, ytd, 1y, 5y");
             return await ExecutePythonScriptAsync("fetch_etf_intraday.py", $"{symbol} {period}");
         }
 

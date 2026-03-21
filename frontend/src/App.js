@@ -7,6 +7,7 @@ import EtfAnalysis from './components/EtfAnalysis';
 import SP500Analysis from './components/SP500Analysis';
 import StockAlerts from './components/StockAlerts';
 import Portfolio from './components/Portfolio';
+import OilSentiment from './components/OilSentiment';
 import './App.css';
 
 function App() {
@@ -60,6 +61,12 @@ function App() {
             >
               My Portfolio
             </button>
+            <button
+              className={activeTab === 'oil' ? 'active' : ''}
+              onClick={() => setActiveTab('oil')}
+            >
+              Oil Signal
+            </button>
           </nav>
         </header>
 
@@ -71,6 +78,7 @@ function App() {
           {activeTab === 'sp500' && <SP500Analysis />}
           {activeTab === 'alerts' && <StockAlerts />}
           {activeTab === 'portfolio' && <Portfolio />}
+          {activeTab === 'oil' && <OilSentiment />}
         </main>
       </div>
     </Router>

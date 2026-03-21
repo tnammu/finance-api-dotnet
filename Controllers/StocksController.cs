@@ -84,10 +84,8 @@ namespace FinanceApi.Controllers
                 return NotFound(new { message = $"Stock with ID {id} not found" });
             }
 
-            if (result.Status == "Failed" || result.Status == "Error")
-            {
+            if (result.IsError)
                 return BadRequest(new { message = result.Message });
-            }
 
             return Ok(new
             {
@@ -133,15 +131,8 @@ namespace FinanceApi.Controllers
                 return StatusCode(500, new { message = "Failed to add stock" });
             }
 
-            if (result.Status == "Conflict")
-            {
-                return Conflict(new { message = result.Message });
-            }
-
-            if (result.Status == "Failed" || result.Status == "Error")
-            {
-                return BadRequest(new { message = result.Message });
-            }
+            if (result.IsConflict) return Conflict(new { message = result.Message });
+            if (result.IsError)    return BadRequest(new { message = result.Message });
 
             return CreatedAtAction(nameof(GetStock), new { id = result.Id }, new
             {

@@ -1,6 +1,5 @@
 using FinanceApi.Services;
 using Microsoft.AspNetCore.Mvc;
-using System.Text.Json;
 
 namespace FinanceApi.Controllers
 {
@@ -55,45 +54,13 @@ namespace FinanceApi.Controllers
             [FromQuery] int years = 5,
             [FromQuery] bool enforceBuyFirst = true)
         {
-            try
-            {
-                symbol = symbol.ToUpper();
+            if (capital <= 0)     return BadRequest(new { error = "Capital must be greater than 0" });
+            if (years < 1 || years > 10) return BadRequest(new { error = "Years must be between 1 and 10" });
 
-                if (string.IsNullOrWhiteSpace(symbol))
-                {
-                    return BadRequest(new { error = "Symbol is required" });
-                }
+            var result = await _strategyService.AnalyzeStrategiesAsync(symbol, capital, years, enforceBuyFirst);
+            if (result == null) return NotFound(new { error = $"Could not analyze strategies for {symbol}" });
 
-                if (capital <= 0)
-                {
-                    return BadRequest(new { error = "Capital must be greater than 0" });
-                }
-
-                if (years < 1 || years > 10)
-                {
-                    return BadRequest(new { error = "Years must be between 1 and 10" });
-                }
-
-                _logger.LogInformation($"Analyzing strategies for {symbol} with ${capital} over {years} years (enforce buy-first: {enforceBuyFirst})");
-
-                var result = await _strategyService.AnalyzeStrategiesAsync(symbol, capital, years, enforceBuyFirst);
-
-                if (result == null)
-                {
-                    return NotFound(new { error = $"Could not analyze strategies for {symbol}" });
-                }
-
-                // Convert JsonDocument to object for response
-                var jsonString = result.RootElement.GetRawText();
-                var response = JsonSerializer.Deserialize<object>(jsonString);
-
-                return Ok(response);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError($"Error analyzing strategies for {symbol}: {ex.Message}");
-                return StatusCode(500, new { error = "Failed to analyze strategies" });
-            }
+            return Ok(result.RootElement);
         }
 
         /// <summary>
@@ -107,54 +74,13 @@ namespace FinanceApi.Controllers
             [FromQuery] double capital = 100,
             [FromQuery] int years = 5)
         {
-            try
-            {
-                symbol = symbol.ToUpper();
+            if (capital <= 0)     return BadRequest(new { error = "Capital must be greater than 0" });
+            if (years < 1 || years > 10) return BadRequest(new { error = "Years must be between 1 and 10" });
 
-                if (string.IsNullOrWhiteSpace(symbol))
-                {
-                    return BadRequest(new { error = "Symbol is required" });
-                }
+            var result = await _strategyService.CalculateSingleStrategyAsync(symbol, strategyType, capital, years);
+            if (result == null) return NotFound(new { error = $"Could not analyze {strategyType} strategy for {symbol}" });
 
-                if (string.IsNullOrWhiteSpace(strategyType))
-                {
-                    return BadRequest(new { error = "Strategy type is required" });
-                }
-
-                if (capital <= 0)
-                {
-                    return BadRequest(new { error = "Capital must be greater than 0" });
-                }
-
-                if (years < 1 || years > 10)
-                {
-                    return BadRequest(new { error = "Years must be between 1 and 10" });
-                }
-
-                _logger.LogInformation($"Analyzing {strategyType} strategy for {symbol} with ${capital} over {years} years");
-
-                var result = await _strategyService.CalculateSingleStrategyAsync(
-                    symbol,
-                    strategyType,
-                    capital,
-                    years);
-
-                if (result == null)
-                {
-                    return NotFound(new { error = $"Could not analyze {strategyType} strategy for {symbol}" });
-                }
-
-                // Convert JsonDocument to object for response
-                var jsonString = result.RootElement.GetRawText();
-                var response = JsonSerializer.Deserialize<object>(jsonString);
-
-                return Ok(response);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError($"Error analyzing {strategyType} strategy for {symbol}: {ex.Message}");
-                return StatusCode(500, new { error = "Failed to analyze strategy" });
-            }
+            return Ok(result.RootElement);
         }
 
         /// <summary>
@@ -165,62 +91,13 @@ namespace FinanceApi.Controllers
         [HttpPost("calculator")]
         public async Task<ActionResult<object>> CalculateReturns([FromBody] StrategyCalculatorRequest request)
         {
-            try
-            {
-                if (request == null || string.IsNullOrWhiteSpace(request.Symbol))
-                {
-                    return BadRequest(new { error = "Invalid request" });
-                }
+            if (request == null || string.IsNullOrWhiteSpace(request.Symbol))
+                return BadRequest(new { error = "Invalid request" });
 
-                var symbol = request.Symbol.ToUpper();
-                var amounts = request.Amounts ?? new List<double> { 100, 500, 1000, 5000 };
-                var years = request.Years ?? 5;
-                var strategyType = request.StrategyType ?? "buyHold";
+            var result = await _strategyService.CalculateMultiCapitalAsync(
+                request.Symbol, request.StrategyType, request.Amounts, request.Years);
 
-                _logger.LogInformation($"Calculating returns for {symbol} strategy {strategyType} with {amounts.Count} different amounts");
-
-                var results = new List<object>();
-
-                foreach (var amount in amounts)
-                {
-                    var analysis = await _strategyService.CalculateSingleStrategyAsync(
-                        symbol,
-                        strategyType,
-                        amount,
-                        years);
-
-                    if (analysis != null && analysis.RootElement.TryGetProperty("strategy", out var strategyElement))
-                    {
-                        var strategyData = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(strategyElement.GetRawText());
-
-                        if (strategyData != null)
-                        {
-                            results.Add(new
-                            {
-                                capital = amount,
-                                finalValue = strategyData.ContainsKey("finalValue") ? strategyData["finalValue"].GetDouble() : 0,
-                                totalReturn = strategyData.ContainsKey("totalReturn") ? strategyData["totalReturn"].GetDouble() : 0,
-                                profit = strategyData.ContainsKey("finalValue") ? strategyData["finalValue"].GetDouble() - amount : 0,
-                                winRate = strategyData.ContainsKey("winRate") ? strategyData["winRate"].GetDouble() : 0
-                            });
-                        }
-                    }
-                }
-
-                return Ok(new
-                {
-                    success = true,
-                    symbol = symbol,
-                    strategyType = strategyType,
-                    years = years,
-                    calculations = results
-                });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError($"Error calculating returns: {ex.Message}");
-                return StatusCode(500, new { error = "Failed to calculate returns" });
-            }
+            return Ok(result);
         }
     }
 

@@ -59,6 +59,7 @@ builder.Services.AddScoped<RedditSentimentService>();
 builder.Services.AddScoped<SmsNotificationService>();
 builder.Services.AddScoped<StockAlertService>();
 builder.Services.AddScoped<PortfolioService>();
+builder.Services.AddSingleton<OilSentimentService>();
 builder.Services.AddHostedService<StockAlertSchedulerService>();
 
 // Add Swagger

@@ -103,13 +103,13 @@ function DividendAnalysis({ selectedSymbol }) {
     }
 
     // Swing Trading - stocks with price movement potential
-    // Needs: volatility OR beta indicating movement
+    // Needs: some volatility/beta OR data missing (include by price range as fallback)
+    const hasVolatility = stock.dailyVolatility && stock.dailyVolatility >= 0.8;
+    const hasBeta = stock.beta && stock.beta >= 0.7;
+    const noData = !stock.dailyVolatility && !stock.beta;
     if (
-      stock.currentPrice && stock.currentPrice <= 500 &&
-      (
-        (stock.dailyVolatility && stock.dailyVolatility >= 1.5) ||
-        (stock.beta && stock.beta >= 1.0)
-      )
+      stock.currentPrice && stock.currentPrice >= 2 &&
+      (hasVolatility || hasBeta || noData)
     ) {
       strategies.push('swing-trading');
     }

@@ -226,6 +226,37 @@ namespace FinanceApi.Services
         /// <summary>
         /// Get top trending stocks on Reddit
         /// </summary>
+        /// <summary>
+        /// Fetch sentiment for multiple symbols with built-in rate limiting (1s between requests).
+        /// </summary>
+        public async Task<(List<RedditSentimentSummary> Results, List<string> Failed)> BulkFetchSentimentAsync(List<string> symbols)
+        {
+            var results = new List<RedditSentimentSummary>();
+            var failed  = new List<string>();
+
+            foreach (var symbol in symbols)
+            {
+                await Task.Delay(1000); // Reddit API: 60 req/min
+                var sentiment = await GetSentimentAsync(symbol, forceRefresh: false);
+                if (sentiment != null)
+                    results.Add(new RedditSentimentSummary
+                    {
+                        Symbol            = sentiment.Symbol,
+                        CompanyName       = sentiment.CompanyName,
+                        Sentiment24h      = sentiment.Sentiment24h,
+                        SentimentRating24h= sentiment.SentimentRating24h,
+                        MentionCount24h   = sentiment.MentionCount24h,
+                        TrendingScore     = sentiment.TrendingScore,
+                        PositiveRatio     = sentiment.PositiveRatio,
+                        LastUpdated       = sentiment.LastUpdated,
+                    });
+                else
+                    failed.Add(symbol);
+            }
+
+            return (results, failed);
+        }
+
         public async Task<List<RedditSentimentSummary>> GetTrendingStocksAsync(int count = 10)
         {
             var trending = await _dbContext.RedditSentiments
@@ -274,6 +305,8 @@ namespace FinanceApi.Services
         public int NegativeMentions { get; set; }
         public decimal PositiveRatio { get; set; }
         public string TopKeywords24h { get; set; } = string.Empty;
+        public List<string> TopKeywordsList =>
+            TopKeywords24h?.Split(',', StringSplitOptions.RemoveEmptyEntries).ToList() ?? new List<string>();
         public List<RedditMentionDto> RecentMentions { get; set; } = new List<RedditMentionDto>();
         public Dictionary<string, RedditDailySummaryDto> DailySummaries { get; set; } = new Dictionary<string, RedditDailySummaryDto>();
         public DateTime LastUpdated { get; set; }
@@ -287,6 +320,7 @@ namespace FinanceApi.Services
         public string Author { get; set; } = string.Empty;
         public string Title { get; set; } = string.Empty;
         public string Content { get; set; } = string.Empty;
+        public string TruncatedContent => Content.Length > 200 ? Content[..200] + "..." : Content;
         public DateTime CreatedAt { get; set; }
         public int Upvotes { get; set; }
         public decimal Score { get; set; }
@@ -314,5 +348,6 @@ namespace FinanceApi.Services
         public int TrendingScore { get; set; }
         public decimal PositiveRatio { get; set; }
         public DateTime LastUpdated { get; set; }
+        public double HoursOld => (DateTime.UtcNow - LastUpdated).TotalHours;
     }
 }

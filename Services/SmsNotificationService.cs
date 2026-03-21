@@ -38,13 +38,14 @@ namespace FinanceApi.Services
         /// Sends a push notification via ntfy.sh.
         /// </summary>
         /// <param name="message">Notification body.</param>
-        /// <param name="toNumber">Unused — kept for interface compatibility. ntfy uses topics, not phone numbers.</param>
-        public async Task<SmsSendResult> SendSmsAsync(string message, string? toNumber = null)
+        /// <param name="topic">Override ntfy topic. Defaults to Sms:NtfyTopic from config.</param>
+        /// <param name="title">Override notification title. Defaults to "Top 5 Canadian Stock Picks".</param>
+        public async Task<SmsSendResult> SendSmsAsync(string message, string? topic = null, string? title = null)
         {
-            var topic  = _config["Sms:NtfyTopic"] ?? "finance-picks-chara";
+            var resolvedTopic = topic ?? _config["Sms:NtfyTopic"] ?? "finance-picks-chara";
             var server = _config["Sms:NtfyServer"] ?? "https://ntfy.sh";
 
-            var url = $"{server.TrimEnd('/')}/{topic}";
+            var url = $"{server.TrimEnd('/')}/{resolvedTopic}";
 
             try
             {
@@ -55,11 +56,11 @@ namespace FinanceApi.Services
                 {
                     Content = new StringContent(message, Encoding.UTF8, "text/plain")
                 };
-                request.Headers.Add("Title", "Top 5 Canadian Stock Picks");
+                request.Headers.Add("Title", title ?? "Top 5 Canadian Stock Picks");
                 request.Headers.Add("Priority", "high");
                 request.Headers.Add("Tags", "chart_increasing,canada");
 
-                _logger.LogInformation($"Sending notification to ntfy topic: {topic}");
+                _logger.LogInformation($"Sending notification to ntfy topic: {resolvedTopic}");
 
                 var response = await client.SendAsync(request);
                 var responseBody = await response.Content.ReadAsStringAsync();
@@ -71,8 +72,8 @@ namespace FinanceApi.Services
                     return new SmsSendResult
                     {
                         Success    = true,
-                        MessageSid = topic,
-                        Status     = $"Notification sent to topic '{topic}'"
+                        NtfyTopic  = resolvedTopic,
+                        Status     = $"Notification sent to topic '{resolvedTopic}'"
                     };
                 }
                 else

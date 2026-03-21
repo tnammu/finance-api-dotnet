@@ -15,6 +15,10 @@ namespace FinanceApi.Services
         private readonly ILogger<StockAlertService> _logger;
         private readonly string _scriptsPath;
 
+        private TopPicksResult? _cachedPicks;
+        private DateTime _cacheExpiry = DateTime.MinValue;
+        private readonly TimeSpan _cacheTtl = TimeSpan.FromHours(4);
+
         public StockAlertService(
             SmsNotificationService smsService,
             ILogger<StockAlertService> logger)
@@ -47,6 +51,14 @@ namespace FinanceApi.Services
                 return null;
             }
 
+            if (_cachedPicks != null && DateTime.Now < _cacheExpiry)
+            {
+                _logger.LogInformation("Returning cached top picks (expires {Expiry:HH:mm})", _cacheExpiry);
+                return _cachedPicks;
+            }
+
+            _logger.LogInformation("Running top_canadian_picks.py...");
+
             var startInfo = new ProcessStartInfo
             {
                 FileName = "python",
@@ -57,8 +69,6 @@ namespace FinanceApi.Services
                 CreateNoWindow = true,
                 WorkingDirectory = _scriptsPath
             };
-
-            _logger.LogInformation("Running top_canadian_picks.py...");
 
             using var process = new Process { StartInfo = startInfo };
             process.Start();
@@ -88,6 +98,12 @@ namespace FinanceApi.Services
                 {
                     PropertyNameCaseInsensitive = true
                 });
+                if (result != null)
+                {
+                    _cachedPicks = result;
+                    _cacheExpiry = DateTime.Now + _cacheTtl;
+                    _logger.LogInformation("Top picks cached until {Expiry:HH:mm}", _cacheExpiry);
+                }
                 return result;
             }
             catch (Exception ex)
@@ -99,9 +115,9 @@ namespace FinanceApi.Services
         }
 
         /// <summary>
-        /// Analyzes stocks and sends 3 separate notifications (RSI, Swing, Seasonal).
+        /// Analyzes stocks and sends 4 separate notifications (RSI, Swing, Seasonal, News).
         /// </summary>
-        public async Task<AlertSendResult> GetTopPicksAndSendSmsAsync(string? toPhoneNumber = null)
+        public async Task<AlertSendResult> GetTopPicksAndSendSmsAsync()
         {
             var picks = await GetTopPicksAsync();
 
@@ -114,19 +130,22 @@ namespace FinanceApi.Services
                 };
             }
 
-            var r1 = await _smsService.SendSmsAsync(FormatRsiMessage(picks), toPhoneNumber);
-            var r2 = await _smsService.SendSmsAsync(FormatSwingMessage(picks), toPhoneNumber);
-            var r3 = await _smsService.SendSmsAsync(FormatSeasonalMessage(picks), toPhoneNumber);
+            var smsResults = await Task.WhenAll(
+                _smsService.SendSmsAsync(FormatRsiMessage(picks)),
+                _smsService.SendSmsAsync(FormatSwingMessage(picks)),
+                _smsService.SendSmsAsync(FormatSeasonalMessage(picks)),
+                _smsService.SendSmsAsync(FormatNewsMessage(picks))
+            );
 
-            var success = r1.Success && r2.Success && r3.Success;
-            var errors  = string.Join("; ", new[] { r1.Error, r2.Error, r3.Error }.Where(e => e != null));
+            var success = smsResults.All(r => r.Success);
+            var errors  = string.Join("; ", smsResults.Select(r => r.Error).Where(e => e != null));
 
             return new AlertSendResult
             {
                 Success       = success,
                 Error         = string.IsNullOrEmpty(errors) ? null : errors,
-                SmsStatus     = success ? "3 notifications sent" : "Some notifications failed",
-                MessageSent   = $"[1/3] RSI\n[2/3] Swing\n[3/3] Seasonal — {picks.TotalAnalyzed} stocks analyzed",
+                SmsStatus     = success ? "4 notifications sent" : "Some notifications failed",
+                MessageSent   = $"[1/4] RSI\n[2/4] Swing\n[3/4] Seasonal\n[4/4] News — {picks.TotalAnalyzed} stocks analyzed",
                 GeneratedAt   = picks.GeneratedAt,
                 TotalAnalyzed = picks.TotalAnalyzed
             };
@@ -135,7 +154,7 @@ namespace FinanceApi.Services
         private string FormatRsiMessage(TopPicksResult picks)
         {
             var sb = new StringBuilder();
-            sb.AppendLine($"[1/3] RSI OVERSOLD — {DateTime.Now:MMM dd} ({picks.TotalAnalyzed} stocks)");
+            sb.AppendLine($"[1/4] RSI OVERSOLD — {DateTime.Now:MMM dd} ({picks.TotalAnalyzed} stocks)");
             sb.AppendLine("#  Stock     Price    Score  RSI        Trend");
             sb.AppendLine("-- --------- -------- ------ ---------- ---------");
             if (picks.Rsi?.Any() == true)
@@ -154,26 +173,26 @@ namespace FinanceApi.Services
         private string FormatSwingMessage(TopPicksResult picks)
         {
             var sb = new StringBuilder();
-            sb.AppendLine($"[2/3] SWING TRADE — {DateTime.Now:MMM dd}");
-            sb.AppendLine("#  Stock     Price    Score  RSI        Trend");
-            sb.AppendLine("-- --------- -------- ------ ---------- ---------");
+            sb.AppendLine($"[2/4] SWING TRADE — {DateTime.Now:MMM dd}");
+            sb.AppendLine("#  Stock     Price    Score  RSI   Div  Entry Zone        SL       TP1      TP2      R:R");
+            sb.AppendLine("-- --------- -------- ------ ----- ---- ----------------- -------- -------- -------- ----");
             if (picks.Swing?.Any() == true)
             {
                 for (int i = 0; i < picks.Swing.Count; i++)
-                    FormatStockRow(sb, i + 1, picks.Swing[i]);
+                    FormatSwingRow(sb, i + 1, picks.Swing[i]);
             }
             else
             {
                 sb.AppendLine("None found");
             }
-            sb.Append("ATR 2-5% ideal | Near lower BB = buy zone");
+            sb.Append("Entry=lower 40% of zone | SL=E-2xATR | TP1=E+2xATR | TP2=E+4xATR");
             return sb.ToString().TrimEnd();
         }
 
         private string FormatSeasonalMessage(TopPicksResult picks)
         {
             var sb = new StringBuilder();
-            sb.AppendLine($"[3/3] SEASONAL ({picks.Month ?? "Month"}) — {DateTime.Now:MMM dd}");
+            sb.AppendLine($"[3/4] SEASONAL ({picks.Month ?? "Month"}) — {DateTime.Now:MMM dd}");
             sb.AppendLine("#  Stock     Price    AvgRet  Win%  Trend");
             sb.AppendLine("-- --------- -------- ------- ----- ---------");
             if (picks.Seasonal?.Any() == true)
@@ -189,14 +208,36 @@ namespace FinanceApi.Services
             return sb.ToString().TrimEnd();
         }
 
+        private void FormatSwingRow(StringBuilder sb, int rank, StockPickItem s)
+        {
+            var sym    = s.Symbol.Replace(".TO", "");
+            var rsi    = s.Rsi.HasValue ? s.Rsi.Value.ToString("F0") : "--";
+            var div    = s.HasDivergence ? "DIV✓" : "    ";
+            var score  = s.SwingScore.ToString("F0");
+            var zone   = (s.EntryLow.HasValue && s.EntryHigh.HasValue)
+                ? $"${s.EntryLow.Value:F2}-${s.EntryHigh.Value:F2}"
+                : "N/A";
+            var sl     = s.StopLoss.HasValue  ? $"${s.StopLoss.Value:F2}"  : "N/A";
+            var tp1    = s.Tp1.HasValue       ? $"${s.Tp1.Value:F2}"       : "N/A";
+            var tp2    = s.Tp2.HasValue       ? $"${s.Tp2.Value:F2}"       : "N/A";
+            var rr     = s.RrRatio.HasValue   ? $"{s.RrRatio.Value:F1}x"   : "N/A";
+            sb.AppendLine($"{rank,-2} {sym,-9} ${s.Price,-7:F2} {score,-6} {rsi,-5} {div,-4} {zone,-17} {sl,-8} {tp1,-8} {tp2,-8} {rr}");
+        }
+
         private void FormatStockRow(StringBuilder sb, int rank, StockPickItem s)
         {
             var sym    = s.Symbol.Replace(".TO", "");
             var rsiVal = s.Rsi.HasValue ? s.Rsi.Value.ToString("F0") : "--";
             var rsiCol = $"{rsiVal} {GetRsiLabel(s.Rsi)}";
             var score  = $"{s.SwingScore:F0}";
+            var sent   = s.SentimentLabel switch
+            {
+                "Bullish" => "📈",
+                "Bearish" => "📉",
+                _         => "  "
+            };
 
-            sb.AppendLine($"{rank,-2} {sym,-9} ${s.Price,-7:F2} {score,-6} {rsiCol,-10} {s.Trend ?? "N/A"}");
+            sb.AppendLine($"{rank,-2} {sym,-9} ${s.Price,-7:F2} {score,-6} {rsiCol,-10} {s.Trend ?? "N/A"} {sent}");
         }
 
         private void FormatSeasonalRow(StringBuilder sb, int rank, StockPickItem s)
@@ -205,9 +246,57 @@ namespace FinanceApi.Services
             var avgRet = s.MonthAvgReturn.HasValue
                 ? $"{(s.MonthAvgReturn.Value >= 0 ? "+" : "")}{s.MonthAvgReturn.Value:F1}%"
                 : "N/A";
-            var winRate = $"{s.SeasonalWinRate:F0}%";
+            var winRate  = $"{s.SeasonalWinRate:F0}%";
+            var sellMonth = s.BestSellMonth != null
+                ? $"Sell→{s.BestSellMonth[..3]}" + (s.BestSellMonthReturn.HasValue
+                    ? $"({(s.BestSellMonthReturn.Value >= 0 ? "+" : "")}{s.BestSellMonthReturn.Value:F1}%)"
+                    : "")
+                : "";
 
-            sb.AppendLine($"{rank,-2} {sym,-9} ${s.Price,-7:F2} {avgRet,-7} {winRate,-5} {s.Trend ?? "N/A"}");
+            sb.AppendLine($"{rank,-2} {sym,-9} ${s.Price,-7:F2} {avgRet,-7} {winRate,-5} {sellMonth}");
+        }
+
+        private string FormatNewsMessage(TopPicksResult picks)
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine($"[4/4] NEWS SENTIMENT — {DateTime.Now:MMM dd} ({picks.TotalAnalyzed} stocks)");
+            sb.AppendLine("#  Stock     Price    Score  Headline");
+            sb.AppendLine("-- --------- -------- ------ ----------------------------------------");
+
+            if (picks.News?.Any() == true)
+            {
+                for (int i = 0; i < picks.News.Count; i++)
+                {
+                    var s       = picks.News[i];
+                    var sym     = s.Symbol.Replace(".TO", "");
+                    var score   = s.NewsScore.HasValue
+                        ? $"{(s.NewsScore.Value >= 0 ? "+" : "")}{s.NewsScore.Value:F2}"
+                        : "N/A";
+                    var headline = (s.TopHeadline ?? "No headline").Length > 42
+                        ? (s.TopHeadline ?? "")[..42] + "…"
+                        : (s.TopHeadline ?? "No headline");
+
+                    sb.AppendLine($"{i + 1,-2} {sym,-9} ${s.Price,-7:F2} {score,-6} {headline}");
+                }
+            }
+            else
+            {
+                sb.AppendLine("No bullish news signals found today");
+            }
+
+            // Macro sector summary
+            if (picks.MacroSentiment?.Any() == true)
+            {
+                sb.AppendLine();
+                sb.Append("Macro: ");
+                foreach (var (sector, score) in picks.MacroSentiment)
+                {
+                    var arrow = score > 0.15 ? "📈" : score < -0.15 ? "📉" : "➡️";
+                    sb.Append($"{char.ToUpper(sector[0])}{sector[1..]} {arrow}  ");
+                }
+            }
+
+            return sb.ToString().TrimEnd();
         }
 
         private static string GetRsiLabel(double? rsi)
@@ -241,6 +330,15 @@ namespace FinanceApi.Services
 
         [JsonPropertyName("seasonal")]
         public List<StockPickItem>? Seasonal { get; set; }
+
+        [JsonPropertyName("news")]
+        public List<StockPickItem>? News { get; set; }
+
+        [JsonPropertyName("macro_sentiment")]
+        public Dictionary<string, double>? MacroSentiment { get; set; }
+
+        [JsonPropertyName("macro_overall")]
+        public double MacroOverall { get; set; }
 
         [JsonPropertyName("error")]
         public string? Error { get; set; }
@@ -313,6 +411,48 @@ namespace FinanceApi.Services
 
         [JsonPropertyName("month")]
         public string? Month { get; set; }
+
+        [JsonPropertyName("best_sell_month")]
+        public string? BestSellMonth { get; set; }
+
+        [JsonPropertyName("best_sell_month_return")]
+        public double? BestSellMonthReturn { get; set; }
+
+        [JsonPropertyName("news_score")]
+        public double? NewsScore { get; set; }
+
+        [JsonPropertyName("sentiment_label")]
+        public string? SentimentLabel { get; set; }
+
+        [JsonPropertyName("sentiment_boost")]
+        public int SentimentBoost { get; set; }
+
+        [JsonPropertyName("top_headline")]
+        public string? TopHeadline { get; set; }
+
+        [JsonPropertyName("has_divergence")]
+        public bool HasDivergence { get; set; }
+
+        [JsonPropertyName("entry_low")]
+        public double? EntryLow { get; set; }
+
+        [JsonPropertyName("entry_high")]
+        public double? EntryHigh { get; set; }
+
+        [JsonPropertyName("entry_mid")]
+        public double? EntryMid { get; set; }
+
+        [JsonPropertyName("stop_loss")]
+        public double? StopLoss { get; set; }
+
+        [JsonPropertyName("tp1")]
+        public double? Tp1 { get; set; }
+
+        [JsonPropertyName("tp2")]
+        public double? Tp2 { get; set; }
+
+        [JsonPropertyName("rr_ratio")]
+        public double? RrRatio { get; set; }
     }
 
     public class AlertSendResult
@@ -330,6 +470,6 @@ namespace FinanceApi.Services
         public bool Success { get; set; }
         public string? Status { get; set; }
         public string? Error { get; set; }
-        public string? MessageSid { get; set; }
+        public string? NtfyTopic { get; set; }
     }
 }

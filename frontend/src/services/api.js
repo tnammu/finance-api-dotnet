@@ -66,4 +66,10 @@ export const portfolioAPI = {
   remove: (id) => api.delete(`/portfolio/${id}`),
 };
 
+// Oil Sentiment API
+export const oilAPI = {
+  getSentiment: () => api.get('/oil/sentiment'),
+  sendSms:      (to) => api.post(`/oil/send-sms${to ? `?to=${to}` : ''}`),
+};
+
 export default api;

@@ -57,18 +57,17 @@ namespace FinanceApi.Controllers
         }
 
         /// <summary>
-        /// Analyzes top 5 Canadian stocks and sends results via SMS.
+        /// Analyzes top 5 Canadian stocks and sends results via ntfy.
         /// POST: /api/alerts/send-sms
-        /// Optional query param: ?to=+16135551234  (overrides appsettings ToNumber)
         /// </summary>
         [HttpPost("send-sms")]
-        public async Task<ActionResult<object>> SendSmsAlert([FromQuery] string? to = null)
+        public async Task<ActionResult<object>> SendSmsAlert()
         {
             try
             {
-                _logger.LogInformation($"SMS alert requested. Target: {to ?? "default from appsettings"}");
+                _logger.LogInformation("Stock alert notification requested");
 
-                var result = await _alertService.GetTopPicksAndSendSmsAsync(to);
+                var result = await _alertService.GetTopPicksAndSendSmsAsync();
 
                 if (!result.Success)
                 {

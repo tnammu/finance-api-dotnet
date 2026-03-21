@@ -263,6 +263,15 @@ namespace FinanceApi.Services
         }
 
         /// <summary>
+        /// Returns cached comparison if available, otherwise calculates and saves it.
+        /// </summary>
+        public async Task<StockSectorComparison?> GetOrCalculateStockSectorComparisonAsync(string symbol)
+        {
+            return await GetStockSectorComparison(symbol)
+                ?? await CalculateStockSectorComparison(symbol);
+        }
+
+        /// <summary>
         /// Get cached performances, calculating on first run or when refresh is requested.
         /// </summary>
         public async Task<List<SectorPerformance>> GetOrCalculateAllSectorPerformancesAsync(bool refresh = false)

@@ -99,7 +99,7 @@ export default function StockAlerts() {
                 <span style={styles.cardIcon}>📉</span>
                 <h3 style={styles.cardTitle}>RSI Oversold</h3>
               </div>
-              <p style={styles.cardDesc}>Buy signal when RSI &lt; 40</p>
+              <p style={styles.cardDesc}>Genuinely oversold (RSI &lt; 35) · volume rising · near support</p>
               {picks.strategies.rsi?.map((s, i) => (
                 <div key={s.symbol} style={styles.row}>
                   <span style={styles.rank}>#{i + 1}</span>
@@ -110,8 +110,11 @@ export default function StockAlerts() {
                   <div style={styles.badge(rsiColor(s.rsi))}>
                     RSI {s.rsi?.toFixed(0) ?? 'N/A'}
                   </div>
-                  <span style={{ ...styles.signal, color: rsiColor(s.rsi) }}>
-                    {s.rsi < 30 ? '★ Strong Buy' : s.rsi < 40 ? 'Buy' : s.rsi_signal}
+                  <span style={{ ...styles.signal, color: s.trend === 'Uptrend' ? '#4caf50' : s.trend === 'Downtrend' ? '#f44336' : '#ff9800' }}>
+                    {s.trend ?? 'N/A'}
+                  </span>
+                  <span style={styles.meta2}>
+                    Vol {s.vol_ratio?.toFixed(1)}x · +{s.pct_from_52w_low?.toFixed(0)}% from low
                   </span>
                 </div>
               ))}
@@ -123,7 +126,7 @@ export default function StockAlerts() {
                 <span style={styles.cardIcon}>📊</span>
                 <h3 style={styles.cardTitle}>Swing Trade</h3>
               </div>
-              <p style={styles.cardDesc}>Volatility · BB Position · Volume</p>
+              <p style={styles.cardDesc}>Score ≥ 45 · not downtrend · RSI not overbought</p>
               {picks.strategies.swing?.map((s, i) => (
                 <div key={s.symbol} style={styles.row}>
                   <span style={styles.rank}>#{i + 1}</span>
@@ -134,6 +137,12 @@ export default function StockAlerts() {
                   <div style={styles.badge(scoreColor(s.swing_score))}>
                     Score {s.swing_score?.toFixed(0)}
                   </div>
+                  <div style={styles.badge(rsiColor(s.rsi))}>
+                    RSI {s.rsi?.toFixed(0)}
+                  </div>
+                  <span style={{ ...styles.signal, color: s.trend === 'Uptrend' ? '#4caf50' : s.trend === 'Downtrend' ? '#f44336' : '#ff9800' }}>
+                    {s.trend ?? 'N/A'}
+                  </span>
                   <span style={styles.meta2}>{s.bb_position}</span>
                 </div>
               ))}
@@ -145,7 +154,7 @@ export default function StockAlerts() {
                 <span style={styles.cardIcon}>📅</span>
                 <h3 style={styles.cardTitle}>Seasonal — {picks.month}</h3>
               </div>
-              <p style={styles.cardDesc}>Avg return this month historically</p>
+              <p style={styles.cardDesc}>Good to buy in {picks.month} — shows avg return &amp; best month to sell</p>
               {picks.strategies.seasonal?.map((s, i) => (
                 <div key={s.symbol} style={styles.row}>
                   <span style={styles.rank}>#{i + 1}</span>
@@ -154,10 +163,19 @@ export default function StockAlerts() {
                     <span style={styles.price}>${s.price?.toFixed(2)}</span>
                   </div>
                   <div style={styles.badge(returnColor(s.month_avg_return))}>
+                    Buy {picks.month?.slice(0, 3)}{' '}
                     {s.month_avg_return != null
                       ? `${s.month_avg_return >= 0 ? '+' : ''}${s.month_avg_return.toFixed(1)}%`
                       : 'N/A'}
                   </div>
+                  {s.best_sell_month && (
+                    <div style={styles.badge(returnColor(s.best_sell_month_return))}>
+                      Sell {s.best_sell_month.slice(0, 3)}{' '}
+                      {s.best_sell_month_return != null
+                        ? `${s.best_sell_month_return >= 0 ? '+' : ''}${s.best_sell_month_return.toFixed(1)}%`
+                        : ''}
+                    </div>
+                  )}
                   <span style={styles.meta2}>{s.seasonal_years}yr avg</span>
                 </div>
               ))}

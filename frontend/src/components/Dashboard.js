@@ -93,8 +93,8 @@ function Dashboard() {
     <div className="dashboard">
       <div className="dashboard-header">
         <div>
-          <h2>Stock Portfolio</h2>
-          <p className="subtitle">{stocks.length} stocks tracked</p>
+          <h2>Stock Database</h2>
+          <p className="subtitle">{stocks.length} stocks in database</p>
         </div>
         <div className="actions">
           <button className="primary" onClick={() => setShowAddModal(true)}>
