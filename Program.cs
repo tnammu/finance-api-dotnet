@@ -1,5 +1,7 @@
 ﻿using FinanceApi.Services;
 using FinanceApi.Data;
+using FinanceApi.Repositories;
+using FinanceApi.Repositories.Interfaces;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -44,6 +46,12 @@ builder.Services.AddDbContext<DividendDbContext>(options =>
 // builder.Services.AddDbContext<FinanceDbcontext>(options =>
 //     options.UseSqlite(builder.Configuration.GetConnectionString("FinanceConnection")));
 
+
+// Repositories
+builder.Services.AddScoped<IHoldingRepository, HoldingRepository>();
+builder.Services.AddScoped<IDividendRepository, DividendRepository>();
+builder.Services.AddScoped<IRedditSentimentRepository, RedditSentimentRepository>();
+builder.Services.AddScoped<ISectorRepository, SectorRepository>();
 
 // Add HTTP Client Services
 builder.Services.AddHttpClient<DividendAnalysisService>();

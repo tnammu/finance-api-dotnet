@@ -1,7 +1,6 @@
 ﻿using FinanceApi.Services;
-using FinanceApi.Data;
+using FinanceApi.Repositories.Interfaces;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 
 namespace FinanceApi.Controllers
 {
@@ -10,16 +9,16 @@ namespace FinanceApi.Controllers
     public class DividendsController : ControllerBase
     {
         private readonly DividendAnalysisService _dividendService;
-        private readonly DividendDbContext _dbContext;
+        private readonly IDividendRepository _dividendRepo;
         private readonly ILogger<DividendsController> _logger;
 
         public DividendsController(
             DividendAnalysisService dividendService,
-            DividendDbContext dbContext,
+            IDividendRepository dividendRepo,
             ILogger<DividendsController> logger)
         {
             _dividendService = dividendService;
-            _dbContext       = dbContext;
+            _dividendRepo    = dividendRepo;
             _logger          = logger;
         }
 
@@ -32,10 +31,7 @@ namespace FinanceApi.Controllers
             symbol = symbol.ToUpper();
 
             // Check if stock exists in cache
-            var cached = await _dbContext.DividendModels
-                .Include(d => d.DividendPayments)
-                .Include(d => d.YearlyDividends)
-                .FirstOrDefaultAsync(d => d.Symbol == symbol);
+            var cached = await _dividendRepo.GetBySymbolWithDetailsAsync(symbol);
 
             // If not cached or refresh requested, fetch from Yahoo using Python
             if (cached == null || refresh)
@@ -56,10 +52,7 @@ namespace FinanceApi.Controllers
                         {
                             _logger.LogInformation($"✓ Successfully fetched {symbol} from Alpha Vantage");
                             // Data is now in database, reload it
-                            cached = await _dbContext.DividendModels
-                                .Include(d => d.DividendPayments)
-                                .Include(d => d.YearlyDividends)
-                                .FirstOrDefaultAsync(d => d.Symbol == symbol);
+                            cached = await _dividendRepo.GetBySymbolWithDetailsAsync(symbol);
                         }
                         else
                         {
@@ -75,10 +68,7 @@ namespace FinanceApi.Controllers
                 else
                 {
                     // Reload from database after Python script updates it
-                    cached = await _dbContext.DividendModels
-                        .Include(d => d.DividendPayments)
-                        .Include(d => d.YearlyDividends)
-                        .FirstOrDefaultAsync(d => d.Symbol == symbol);
+                    cached = await _dividendRepo.GetBySymbolWithDetailsAsync(symbol);
                 }
 
                 if (cached == null)
@@ -181,7 +171,7 @@ namespace FinanceApi.Controllers
             var symbol = request.Symbol.ToUpper().Trim();
 
             // Check if already exists
-            if (await _dbContext.DividendModels.AnyAsync(s => s.Symbol == symbol))
+            if (await _dividendRepo.ExistsAsync(symbol))
             {
                 return Conflict(new { error = $"Stock {symbol} already exists" });
             }
@@ -341,7 +331,7 @@ namespace FinanceApi.Controllers
             // If no days parameter, return today's usage only
             if (days == null)
             {
-                var log = await _dbContext.ApiUsageLogs.FirstOrDefaultAsync(l => l.Date == today);
+                var log = await _dividendRepo.GetApiUsageTodayAsync();
 
                 if (log == null)
                 {
@@ -371,10 +361,7 @@ namespace FinanceApi.Controllers
 
             // If days parameter provided, return history
             var startDate = today.AddDays(-days.Value);
-            var history = await _dbContext.ApiUsageLogs
-                .Where(l => l.Date >= startDate)
-                .OrderByDescending(l => l.Date)
-                .ToListAsync();
+            var history = await _dividendRepo.GetApiUsageHistoryAsync(startDate);
 
             var totalCalls = history.Sum(h => h.CallsUsed);
             var avgPerDay = history.Any() ? history.Average(h => h.CallsUsed) : 0;
@@ -405,16 +392,14 @@ namespace FinanceApi.Controllers
         {
             symbol = symbol.ToUpper();
 
-            var cached = await _dbContext.DividendModels
-                .FirstOrDefaultAsync(d => d.Symbol == symbol);
+            var cached = await _dividendRepo.GetBySymbolAsync(symbol);
 
             if (cached == null)
             {
                 return NotFound(new { error = $"No cached data for {symbol}" });
             }
 
-            _dbContext.DividendModels.Remove(cached);
-            await _dbContext.SaveChangesAsync();
+            await _dividendRepo.DeleteAsync(cached);
 
             return Ok(new
             {
@@ -430,41 +415,25 @@ namespace FinanceApi.Controllers
         [HttpGet("analytics")]
         public async Task<ActionResult<object>> GetAnalytics()
         {
-            var totalStocks = await _dbContext.DividendModels.CountAsync();
-            var totalPayments = await _dbContext.DividendPayments.CountAsync();
+            var totalStocks = await _dividendRepo.CountAsync();
+            var totalPayments = await _dividendRepo.CountPaymentsAsync();
 
             // Get top scorers - fetch first, then sort in memory (SQLite doesn't support ORDER BY decimal)
-            var allStocks = await _dbContext.DividendModels
-                .Select(d => new
-                {
-                    symbol = d.Symbol,
-                    companyName = d.CompanyName,
-                    safetyScore = d.SafetyScore,
-                    rating = d.SafetyRating
-                })
-                .ToListAsync();
+            var allStocks = await _dividendRepo.GetAllAsync();
 
             var topScorers = allStocks
-                .OrderByDescending(d => d.safetyScore)
+                .OrderByDescending(d => d.SafetyScore)
                 .Take(5)
+                .Select(d => new { symbol = d.Symbol, companyName = d.CompanyName, safetyScore = d.SafetyScore, rating = d.SafetyRating })
                 .ToList();
 
-            // Get by sector - fetch first, calculate average in memory
-            var allStocksForSector = await _dbContext.DividendModels
-                .Select(d => new
-                {
-                    sector = d.Sector,
-                    safetyScore = d.SafetyScore
-                })
-                .ToListAsync();
-
-            var bySector = allStocksForSector
-                .GroupBy(d => d.sector)
+            var bySector = allStocks
+                .GroupBy(d => d.Sector)
                 .Select(g => new
                 {
                     sector = g.Key,
                     count = g.Count(),
-                    avgScore = g.Average(d => (double)d.safetyScore)
+                    avgScore = g.Average(d => (double)d.SafetyScore)
                 })
                 .OrderByDescending(s => s.count)
                 .ToList();
@@ -479,7 +448,7 @@ namespace FinanceApi.Controllers
                 {
                     analyses = totalStocks,
                     payments = totalPayments,
-                    yearlyRecords = await _dbContext.YearlyDividends.CountAsync()
+                    yearlyRecords = await _dividendRepo.CountYearlyAsync()
                 }
             });
         }
@@ -515,22 +484,14 @@ namespace FinanceApi.Controllers
         {
             try
             {
-                var stock = await _dbContext.DividendModels
-                    .Include(d => d.DividendPayments)
-                    .Include(d => d.YearlyDividends)
-                    .FirstOrDefaultAsync(d => d.Symbol == symbol.ToUpper());
+                var stock = await _dividendRepo.GetBySymbolAsync(symbol);
 
                 if (stock == null)
                 {
                     return NotFound(new { error = $"Stock {symbol} not found" });
                 }
 
-                // Remove related data first (cascade should handle this but being explicit)
-                _dbContext.DividendPayments.RemoveRange(stock.DividendPayments);
-                _dbContext.YearlyDividends.RemoveRange(stock.YearlyDividends);
-                _dbContext.DividendModels.Remove(stock);
-
-                await _dbContext.SaveChangesAsync();
+                await _dividendRepo.DeleteBySymbolWithDetailsAsync(symbol);
 
                 _logger.LogInformation($"✓ Deleted {symbol} and all related data");
 

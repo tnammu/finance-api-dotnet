@@ -1,20 +1,19 @@
 using System.Diagnostics;
 using System.Text.Json;
-using FinanceApi.Data;
 using FinanceApi.Models;
-using Microsoft.EntityFrameworkCore;
+using FinanceApi.Repositories.Interfaces;
 
 namespace FinanceApi.Services
 {
     public class GrowthStockService
     {
         private readonly ILogger<GrowthStockService> _logger;
-        private readonly DividendDbContext _dbContext;
+        private readonly IDividendRepository _dividendRepo;
 
-        public GrowthStockService(ILogger<GrowthStockService> logger, DividendDbContext dbContext)
+        public GrowthStockService(ILogger<GrowthStockService> logger, IDividendRepository dividendRepo)
         {
             _logger = logger;
-            _dbContext = dbContext;
+            _dividendRepo = dividendRepo;
         }
 
         public async Task<object?> AnalyzeGrowthStockAsync(string symbol)
@@ -104,8 +103,7 @@ namespace FinanceApi.Services
                 }
 
                 // Find or create stock record
-                var stock = await _dbContext.DividendModels
-                    .FirstOrDefaultAsync(d => d.Symbol == symbol);
+                var stock = await _dividendRepo.GetBySymbolAsync(symbol);
 
                 if (stock == null)
                 {
@@ -119,7 +117,7 @@ namespace FinanceApi.Services
                         FetchedAt = DateTime.UtcNow,
                         LastUpdated = DateTime.UtcNow
                     };
-                    _dbContext.DividendModels.Add(stock);
+                    await _dividendRepo.AddAsync(stock);
                 }
                 else
                 {
@@ -152,7 +150,7 @@ namespace FinanceApi.Services
                     stock.ProfitMargin = profitMargin;
                 }
 
-                await _dbContext.SaveChangesAsync();
+                await _dividendRepo.SaveAsync();
 
                 _logger.LogInformation($"✓ Saved growth data for {symbol} to database (Score: {stock.GrowthScore})");
             }
@@ -207,9 +205,7 @@ namespace FinanceApi.Services
         /// </summary>
         public async Task<List<GrowthStockDto>> GetAllGrowthStocksAsync()
         {
-            var allStocks = await _dbContext.DividendModels
-                .Where(d => d.GrowthScore > 0)
-                .ToListAsync();
+            var allStocks = await _dividendRepo.GetWithGrowthScoreAsync();
 
             return allStocks
                 .OrderByDescending(d => d.GrowthScore)
@@ -222,9 +218,7 @@ namespace FinanceApi.Services
         /// </summary>
         public async Task<List<GrowthStockDto>> GetTopGrowthStocksAsync(int count)
         {
-            var allStocks = await _dbContext.DividendModels
-                .Where(d => d.GrowthScore > 0)
-                .ToListAsync();
+            var allStocks = await _dividendRepo.GetWithGrowthScoreAsync();
 
             return allStocks
                 .OrderByDescending(d => d.GrowthScore)
@@ -248,9 +242,7 @@ namespace FinanceApi.Services
 
         public async Task<GrowthComparisonResult> CompareGrowthStocksAsync(List<string> symbols)
         {
-            var stocks = await _dbContext.DividendModels
-                .Where(d => symbols.Contains(d.Symbol))
-                .ToListAsync();
+            var stocks = await _dividendRepo.GetBySymbolsAsync(symbols);
 
             var foundSymbols = stocks.Select(s => s.Symbol).ToList();
             var missingSymbols = symbols.Except(foundSymbols).ToList();
@@ -268,7 +260,7 @@ namespace FinanceApi.Services
         /// </summary>
         public async Task<BulkAnalysisResult> AnalyzeAllCachedStocksAsync()
         {
-            var allStocks = await _dbContext.DividendModels.ToListAsync();
+            var allStocks = await _dividendRepo.GetAllAsync();
             var result = new BulkAnalysisResult
             {
                 TotalStocks = allStocks.Count

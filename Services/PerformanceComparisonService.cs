@@ -5,9 +5,7 @@ using System.Linq;
 using System.Net.Http;
 using System.Text.Json;
 using System.Threading.Tasks;
-using Microsoft.EntityFrameworkCore;
-using FinanceApi.Data;
-using FinanceApi.Models;
+using FinanceApi.Repositories.Interfaces;
 using Newtonsoft.Json.Linq;
 
 namespace FinanceApi.Services
@@ -15,17 +13,17 @@ namespace FinanceApi.Services
     public class PerformanceComparisonService
     {
         private readonly IHttpClientFactory _httpClientFactory;
-        private readonly DividendDbContext _dbContext;
+        private readonly IDividendRepository _dividendRepo;
         private readonly ILogger<PerformanceComparisonService> _logger;
         private const string BENCHMARK_SYMBOL = "SPY"; // S&P 500 ETF
 
         public PerformanceComparisonService(
             IHttpClientFactory httpClientFactory,
-            DividendDbContext dbContext,
+            IDividendRepository dividendRepo,
             ILogger<PerformanceComparisonService> logger)
         {
             _httpClientFactory = httpClientFactory;
-            _dbContext = dbContext;
+            _dividendRepo = dividendRepo;
             _logger = logger;
         }
 
@@ -95,7 +93,7 @@ namespace FinanceApi.Services
         {
             try
             {
-                var stocks = await _dbContext.DividendModels.ToListAsync();
+                var stocks = await _dividendRepo.GetAllAsync();
                 var benchmarkData = await FetchHistoricalDataFromYahooAsync(BENCHMARK_SYMBOL, periodYears);
 
                 if (benchmarkData == null || benchmarkData.Count == 0)

@@ -1,6 +1,5 @@
-using Microsoft.EntityFrameworkCore;
-using FinanceApi.Data;
 using FinanceApi.Model;
+using FinanceApi.Repositories.Interfaces;
 
 namespace FinanceApi.Services
 {
@@ -15,28 +14,27 @@ namespace FinanceApi.Services
 
     public class PortfolioService
     {
-        private readonly DividendDbContext _db;
+        private readonly IHoldingRepository _holdingRepo;
+        private readonly IDividendRepository _dividendRepo;
         private readonly ILogger<PortfolioService> _logger;
 
-        public PortfolioService(DividendDbContext db, ILogger<PortfolioService> logger)
+        public PortfolioService(IHoldingRepository holdingRepo, IDividendRepository dividendRepo, ILogger<PortfolioService> logger)
         {
-            _db = db;
+            _holdingRepo = holdingRepo;
+            _dividendRepo = dividendRepo;
             _logger = logger;
         }
 
         public async Task<object> GetHoldingsAsync()
         {
-            var holdings = await _db.Holdings.OrderBy(h => h.Symbol).ToListAsync();
+            var holdings = await _holdingRepo.GetAllOrderedBySymbolAsync();
 
             var symbols = holdings.Select(h => h.Symbol).ToList();
             // Also look up with .TO suffix for Canadian stocks imported from Wealthsimple
             var symbolsWithTo = symbols.Select(s => s.EndsWith(".TO") ? s : s + ".TO").ToList();
             var allLookupSymbols = symbols.Concat(symbolsWithTo).Distinct().ToList();
 
-            var stockData = await _db.DividendModels
-                .Where(d => allLookupSymbols.Contains(d.Symbol))
-                .Select(d => new { d.Symbol, d.CompanyName, d.CurrentPrice, d.DividendPerShare, d.Sector })
-                .ToDictionaryAsync(d => d.Symbol);
+            var stockData = await _dividendRepo.GetEnrichmentBySymbolsAsync(allLookupSymbols);
 
             var enriched = holdings.Select(h =>
             {
@@ -125,15 +123,14 @@ namespace FinanceApi.Services
                 AddedAt = DateTime.UtcNow
             };
 
-            _db.Holdings.Add(holding);
-            await _db.SaveChangesAsync();
+            await _holdingRepo.AddAsync(holding);
             _logger.LogInformation("Added holding: {Symbol} x{Shares} @ {Price}", holding.Symbol, holding.Shares, holding.BuyPrice);
             return holding;
         }
 
         public async Task<HoldingModel?> UpdateHoldingAsync(int id, AddHoldingRequest request)
         {
-            var holding = await _db.Holdings.FindAsync(id);
+            var holding = await _holdingRepo.GetByIdAsync(id);
             if (holding == null) return null;
 
             holding.Symbol = request.Symbol.ToUpper().Trim();
@@ -142,17 +139,16 @@ namespace FinanceApi.Services
             holding.BuyDate = request.BuyDate;
             holding.Notes = request.Notes;
 
-            await _db.SaveChangesAsync();
+            await _holdingRepo.UpdateAsync(holding);
             return holding;
         }
 
         public async Task<HoldingModel?> DeleteHoldingAsync(int id)
         {
-            var holding = await _db.Holdings.FindAsync(id);
+            var holding = await _holdingRepo.GetByIdAsync(id);
             if (holding == null) return null;
 
-            _db.Holdings.Remove(holding);
-            await _db.SaveChangesAsync();
+            await _holdingRepo.DeleteAsync(holding);
             return holding;
         }
     }

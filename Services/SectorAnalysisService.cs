@@ -2,20 +2,21 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using Microsoft.EntityFrameworkCore;
-using FinanceApi.Data;
 using FinanceApi.Models;
+using FinanceApi.Repositories.Interfaces;
 
 namespace FinanceApi.Services
 {
     public class SectorAnalysisService
     {
-        private readonly DividendDbContext _context;
+        private readonly IDividendRepository _dividendRepo;
+        private readonly ISectorRepository _sectorRepo;
         private readonly ILogger<SectorAnalysisService> _logger;
 
-        public SectorAnalysisService(DividendDbContext context, ILogger<SectorAnalysisService> logger)
+        public SectorAnalysisService(IDividendRepository dividendRepo, ISectorRepository sectorRepo, ILogger<SectorAnalysisService> logger)
         {
-            _context = context;
+            _dividendRepo = dividendRepo;
+            _sectorRepo = sectorRepo;
             _logger = logger;
         }
 
@@ -26,7 +27,7 @@ namespace FinanceApi.Services
         {
             try
             {
-                var stocks = await _context.DividendModels.ToListAsync();
+                var stocks = await _dividendRepo.GetAllAsync();
                 var sectors = stocks
                     .Where(s => !string.IsNullOrEmpty(s.Sector))
                     .GroupBy(s => s.Sector)
@@ -82,35 +83,8 @@ namespace FinanceApi.Services
 
                 // Save to database
                 foreach (var performance in sectorPerformances)
-                {
-                    var existing = await _context.SectorPerformances
-                        .FirstOrDefaultAsync(sp => sp.Sector == performance.Sector && sp.Period == performance.Period);
+                    await _sectorRepo.UpsertSectorPerformanceAsync(performance);
 
-                    if (existing != null)
-                    {
-                        // Update existing
-                        existing.AverageReturn = performance.AverageReturn;
-                        existing.MedianReturn = performance.MedianReturn;
-                        existing.TotalMarketCap = performance.TotalMarketCap;
-                        existing.StockCount = performance.StockCount;
-                        existing.RevenueGrowth = performance.RevenueGrowth;
-                        existing.EarningsGrowth = performance.EarningsGrowth;
-                        existing.DividendGrowth = performance.DividendGrowth;
-                        existing.AveragePE = performance.AveragePE;
-                        existing.AveragePB = performance.AveragePB;
-                        existing.AverageDividendYield = performance.AverageDividendYield;
-                        existing.Volatility = performance.Volatility;
-                        existing.Beta = performance.Beta;
-                        existing.LastUpdated = DateTime.UtcNow;
-                    }
-                    else
-                    {
-                        // Add new
-                        _context.SectorPerformances.Add(performance);
-                    }
-                }
-
-                await _context.SaveChangesAsync();
                 return sectorPerformances;
             }
             catch (Exception ex)
@@ -127,16 +101,15 @@ namespace FinanceApi.Services
         {
             try
             {
-                var stock = await _context.DividendModels.FirstOrDefaultAsync(s => s.Symbol == symbol);
+                var stock = await _dividendRepo.GetBySymbolAsync(symbol);
                 if (stock == null || string.IsNullOrEmpty(stock.Sector))
                 {
                     _logger.LogWarning($"Stock {symbol} not found or has no sector");
                     return null;
                 }
 
-                var sectorStocks = await _context.DividendModels
-                    .Where(s => s.Sector == stock.Sector)
-                    .ToListAsync();
+                var allStocks = await _dividendRepo.GetAllAsync();
+                var sectorStocks = allStocks.Where(s => s.Sector == stock.Sector).ToList();
 
                 // Calculate sector averages
                 var sectorAvgReturn1M = CalculateAverageReturn(sectorStocks);
@@ -192,39 +165,7 @@ namespace FinanceApi.Services
                 };
 
                 // Save to database
-                var existing = await _context.StockSectorComparisons
-                    .FirstOrDefaultAsync(ssc => ssc.Symbol == symbol);
-
-                if (existing != null)
-                {
-                    // Update existing
-                    existing.Sector = comparison.Sector;
-                    existing.StockReturn1M = comparison.StockReturn1M;
-                    existing.SectorReturn1M = comparison.SectorReturn1M;
-                    existing.OutperformanceVsSector1M = comparison.OutperformanceVsSector1M;
-                    existing.StockReturn3M = comparison.StockReturn3M;
-                    existing.SectorReturn3M = comparison.SectorReturn3M;
-                    existing.OutperformanceVsSector3M = comparison.OutperformanceVsSector3M;
-                    existing.StockReturn1Y = comparison.StockReturn1Y;
-                    existing.SectorReturn1Y = comparison.SectorReturn1Y;
-                    existing.OutperformanceVsSector1Y = comparison.OutperformanceVsSector1Y;
-                    existing.StockPE = comparison.StockPE;
-                    existing.SectorAvgPE = comparison.SectorAvgPE;
-                    existing.PEPremiumDiscount = comparison.PEPremiumDiscount;
-                    existing.StockDividendYield = comparison.StockDividendYield;
-                    existing.SectorAvgDividendYield = comparison.SectorAvgDividendYield;
-                    existing.YieldPremiumDiscount = comparison.YieldPremiumDiscount;
-                    existing.PerformanceRank = comparison.PerformanceRank;
-                    existing.TotalStocksInSector = comparison.TotalStocksInSector;
-                    existing.PerformancePercentile = comparison.PerformancePercentile;
-                    existing.CalculatedAt = DateTime.UtcNow;
-                }
-                else
-                {
-                    _context.StockSectorComparisons.Add(comparison);
-                }
-
-                await _context.SaveChangesAsync();
+                await _sectorRepo.UpsertStockSectorComparisonAsync(comparison);
                 return comparison;
             }
             catch (Exception ex)
@@ -237,30 +178,20 @@ namespace FinanceApi.Services
         /// <summary>
         /// Get sector performance for a specific sector
         /// </summary>
-        public async Task<SectorPerformance?> GetSectorPerformance(string sector, string period = "current")
-        {
-            return await _context.SectorPerformances
-                .FirstOrDefaultAsync(sp => sp.Sector == sector && sp.Period == period);
-        }
+        public Task<SectorPerformance?> GetSectorPerformance(string sector, string period = "current")
+            => _sectorRepo.GetSectorPerformanceAsync(sector, period);
 
         /// <summary>
         /// Get all sector performances
         /// </summary>
-        public async Task<List<SectorPerformance>> GetAllSectorPerformances()
-        {
-            return await _context.SectorPerformances
-                .OrderByDescending(sp => sp.AverageReturn)
-                .ToListAsync();
-        }
+        public Task<List<SectorPerformance>> GetAllSectorPerformances()
+            => _sectorRepo.GetAllSectorPerformancesAsync();
 
         /// <summary>
         /// Get stock sector comparison
         /// </summary>
-        public async Task<StockSectorComparison?> GetStockSectorComparison(string symbol)
-        {
-            return await _context.StockSectorComparisons
-                .FirstOrDefaultAsync(ssc => ssc.Symbol == symbol);
-        }
+        public Task<StockSectorComparison?> GetStockSectorComparison(string symbol)
+            => _sectorRepo.GetStockSectorComparisonAsync(symbol);
 
         /// <summary>
         /// Returns cached comparison if available, otherwise calculates and saves it.

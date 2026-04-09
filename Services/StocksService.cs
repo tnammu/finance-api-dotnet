@@ -1,19 +1,18 @@
 using System.Diagnostics;
 using System.Text;
-using FinanceApi.Data;
 using FinanceApi.Models;
-using Microsoft.EntityFrameworkCore;
+using FinanceApi.Repositories.Interfaces;
 
 namespace FinanceApi.Services
 {
     public class StocksService
     {
-        private readonly DividendDbContext _dbContext;
+        private readonly IDividendRepository _dividendRepo;
         private readonly ILogger<StocksService> _logger;
 
-        public StocksService(DividendDbContext dbContext, ILogger<StocksService> logger)
+        public StocksService(IDividendRepository dividendRepo, ILogger<StocksService> logger)
         {
-            _dbContext = dbContext;
+            _dividendRepo = dividendRepo;
             _logger = logger;
         }
 
@@ -21,7 +20,7 @@ namespace FinanceApi.Services
 
         public async Task<List<StockSummaryDto>> GetAllStocksAsync()
         {
-            var stocks = await _dbContext.DividendModels.ToListAsync();
+            var stocks = await _dividendRepo.GetAllAsync();
 
             return stocks.Select(s => new StockSummaryDto
             {
@@ -38,7 +37,7 @@ namespace FinanceApi.Services
 
         public async Task<StockSummaryDto?> GetStockByIdAsync(int id)
         {
-            var stock = await _dbContext.DividendModels.FindAsync(id);
+            var stock = await _dividendRepo.GetByIdAsync(id);
 
             if (stock == null) return null;
 
@@ -54,18 +53,11 @@ namespace FinanceApi.Services
             };
         }
 
-        public async Task<DividendModel?> GetStockWithDetailsAsync(string symbol)
-        {
-            return await _dbContext.DividendModels
-                .Include(d => d.DividendPayments)
-                .Include(d => d.YearlyDividends)
-                .FirstOrDefaultAsync(s => s.Symbol == symbol.ToUpper());
-        }
+        public Task<DividendModel?> GetStockWithDetailsAsync(string symbol)
+            => _dividendRepo.GetBySymbolWithDetailsAsync(symbol);
 
-        public async Task<bool> StockExistsAsync(string symbol)
-        {
-            return await _dbContext.DividendModels.AnyAsync(s => s.Symbol == symbol);
-        }
+        public Task<bool> StockExistsAsync(string symbol)
+            => _dividendRepo.ExistsAsync(symbol);
 
         #endregion
 
@@ -95,7 +87,7 @@ namespace FinanceApi.Services
 
         public async Task<RefreshResult> RefreshAllStocksAsync()
         {
-            var stocks = await _dbContext.DividendModels.ToListAsync();
+            var stocks = await _dividendRepo.GetAllAsync();
             var result = new RefreshResult
             {
                 TotalStocks = stocks.Count
@@ -111,7 +103,7 @@ namespace FinanceApi.Services
 
                     if (success)
                     {
-                        var updatedStock = await _dbContext.DividendModels.FirstOrDefaultAsync(s => s.Symbol == stock.Symbol);
+                        var updatedStock = await _dividendRepo.GetBySymbolAsync(stock.Symbol);
                         if (updatedStock != null)
                         {
                             result.SuccessCount++;
@@ -156,14 +148,13 @@ namespace FinanceApi.Services
                 }
             }
 
-            await _dbContext.SaveChangesAsync();
             result.UpdatedAt = DateTime.UtcNow;
             return result;
         }
 
         public async Task<RefreshItemResult?> RefreshStockByIdAsync(int id)
         {
-            var stock = await _dbContext.DividendModels.FindAsync(id);
+            var stock = await _dividendRepo.GetByIdAsync(id);
             if (stock == null) return null;
 
             var success = await FetchStockDataViaPythonAsync(stock.Symbol);
@@ -177,7 +168,7 @@ namespace FinanceApi.Services
                 };
             }
 
-            var updatedStock = await _dbContext.DividendModels.FindAsync(id);
+            var updatedStock = await _dividendRepo.GetByIdAsync(id);
             if (updatedStock == null)
             {
                 return new RefreshItemResult
@@ -327,17 +318,16 @@ namespace FinanceApi.Services
 
         public async Task<bool> DeleteStockAsync(int id)
         {
-            var stock = await _dbContext.DividendModels.FindAsync(id);
+            var stock = await _dividendRepo.GetByIdAsync(id);
             if (stock == null) return false;
 
-            _dbContext.DividendModels.Remove(stock);
-            await _dbContext.SaveChangesAsync();
+            await _dividendRepo.DeleteAsync(stock);
             return true;
         }
 
         public async Task<string> ExportToCsvAsync()
         {
-            var stocks = await _dbContext.DividendModels.OrderBy(s => s.Symbol).ToListAsync();
+            var stocks = await _dividendRepo.GetAllOrderedBySymbolAsync();
 
             var csv = new StringBuilder();
             csv.AppendLine("Symbol,Company Name,Price,Dividend Yield (%),Last Updated,Data Age (minutes)");

@@ -1,6 +1,4 @@
-using Microsoft.EntityFrameworkCore;
-using FinanceApi.Data;
-using FinanceApi.Model;
+using FinanceApi.Repositories.Interfaces;
 using System.Diagnostics;
 
 namespace FinanceApi.Services
@@ -8,16 +6,16 @@ namespace FinanceApi.Services
     public class RedditSentimentService
     {
         private readonly ILogger<RedditSentimentService> _logger;
-        private readonly DividendDbContext _dbContext;
+        private readonly IRedditSentimentRepository _redditRepo;
         private readonly IConfiguration _configuration;
 
         public RedditSentimentService(
             ILogger<RedditSentimentService> logger,
-            DividendDbContext dbContext,
+            IRedditSentimentRepository redditRepo,
             IConfiguration configuration)
         {
             _logger = logger;
-            _dbContext = dbContext;
+            _redditRepo = redditRepo;
             _configuration = configuration;
         }
 
@@ -138,10 +136,7 @@ namespace FinanceApi.Services
         /// </summary>
         private async Task<RedditSentimentAnalysis?> GetFromDatabaseAsync(string symbol)
         {
-            var cached = await _dbContext.RedditSentiments
-                .Include(r => r.Mentions.OrderByDescending(m => m.CreatedAt).Take(20))
-                .Include(r => r.DailySummaries.OrderByDescending(d => d.Date).Take(30))
-                .FirstOrDefaultAsync(r => r.Symbol == symbol);
+            var cached = await _redditRepo.GetBySymbolWithDetailsAsync(symbol);
 
             if (cached == null)
                 return null;
@@ -206,9 +201,7 @@ namespace FinanceApi.Services
         /// </summary>
         public async Task<List<RedditSentimentSummary>> GetAllSentimentsAsync()
         {
-            var sentiments = await _dbContext.RedditSentiments
-                .OrderByDescending(r => r.TrendingScore)
-                .ToListAsync();
+            var sentiments = await _redditRepo.GetAllOrderedByTrendingScoreAsync();
 
             return sentiments.Select(s => new RedditSentimentSummary
             {
@@ -259,11 +252,7 @@ namespace FinanceApi.Services
 
         public async Task<List<RedditSentimentSummary>> GetTrendingStocksAsync(int count = 10)
         {
-            var trending = await _dbContext.RedditSentiments
-                .Where(r => r.MentionCount24h >= 5)  // Minimum 5 mentions
-                .OrderByDescending(r => r.TrendingScore)
-                .Take(count)
-                .ToListAsync();
+            var trending = await _redditRepo.GetTrendingAsync(minMentions: 5, count);
 
             return trending.Select(s => new RedditSentimentSummary
             {
