@@ -355,16 +355,16 @@ const GrowthAnalysis = () => {
                     <td className={`score-cell ${getScoreClass(stock.growthScore)}`}>
                       {stock.growthScore}/100
                     </td>
-                    <td className={stock.revenueGrowth > 15 ? 'positive' : 'negative'}>
+                    <td className={stock.revenueGrowth != null ? (stock.revenueGrowth > 15 ? 'positive' : 'negative') : ''}>
                       {formatNumber(stock.revenueGrowth, 1)}%
                     </td>
-                    <td className={stock.epsGrowthRate > 0 ? 'positive' : 'negative'}>
+                    <td className={stock.epsGrowthRate != null ? (stock.epsGrowthRate > 0 ? 'positive' : 'negative') : ''}>
                       {formatNumber(stock.epsGrowthRate, 1)}%
                     </td>
-                    <td className={stock.pegRatio < 1.5 ? 'positive' : 'negative'}>
+                    <td className={stock.pegRatio != null ? (stock.pegRatio < 1.5 ? 'positive' : 'negative') : ''}>
                       {formatNumber(stock.pegRatio, 2)}
                     </td>
-                    <td className={stock.ruleOf40Score > 40 ? 'positive' : 'negative'}>
+                    <td className={stock.ruleOf40Score != null ? (stock.ruleOf40Score > 40 ? 'positive' : 'negative') : ''}>
                       {formatNumber(stock.ruleOf40Score, 1)}
                     </td>
                     <td>

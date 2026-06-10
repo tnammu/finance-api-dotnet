@@ -126,10 +126,10 @@ function SignalCard({ name, tech, signal }) {
       {/* Price */}
       <div style={{ marginBottom: 20 }}>
         <span style={{ fontSize: 36, fontWeight: 700, color: '#f1f5f9' }}>
-          ${tech.price?.toFixed(2)}
+          {tech.price != null ? `$${tech.price.toFixed(2)}` : 'N/A'}
         </span>
         <span style={{ marginLeft: 10, color: dayColor, fontWeight: 600 }}>
-          {dayArrow} {Math.abs(tech.day_chg_pct)}% today
+          {dayArrow} {tech.day_chg_pct != null ? `${Math.abs(tech.day_chg_pct)}%` : 'N/A'} today
         </span>
       </div>
 
@@ -186,7 +186,7 @@ function SignalCard({ name, tech, signal }) {
       {/* Order levels */}
       <div style={{ marginBottom: 20 }}>
         <h4 style={{ color: '#94a3b8', margin: '0 0 10px', fontSize: 13, textTransform: 'uppercase', letterSpacing: 1 }}>
-          Suggested Order Levels (ATR = ${tech.atr?.toFixed(2)})
+          Suggested Order Levels (ATR = {tech.atr != null ? `$${tech.atr.toFixed(2)}` : 'N/A'})
         </h4>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
           {/* BUY box */}

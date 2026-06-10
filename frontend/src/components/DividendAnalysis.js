@@ -382,17 +382,32 @@ function DividendAnalysis({ selectedSymbol }) {
     }
   };
 
+  const applySorting = (arr) => {
+    if (!sortConfig.key) return arr;
+    return [...arr].sort((a, b) => {
+      let aVal = a[sortConfig.key];
+      let bVal = b[sortConfig.key];
+      if (aVal == null) return 1;
+      if (bVal == null) return -1;
+      if (typeof aVal === 'string') { aVal = aVal.toLowerCase(); bVal = bVal.toLowerCase(); }
+      if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
+      if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
+      return 0;
+    });
+  };
+
   // Filter and sort stocks
   const getFilteredAndSortedStocks = () => {
     let filtered = [...cachedStocks];
 
-    // Apply search filter
+    // When a ticker/name is typed, bypass all other filters so the stock always shows
     if (searchTicker) {
       const searchLower = searchTicker.toLowerCase();
       filtered = filtered.filter(s =>
         s.symbol.toLowerCase().includes(searchLower) ||
         (s.companyName && s.companyName.toLowerCase().includes(searchLower))
       );
+      return applySorting(filtered);
     }
 
     // Apply filters
@@ -432,28 +447,7 @@ function DividendAnalysis({ selectedSymbol }) {
       });
     }
 
-    // Apply sorting
-    if (sortConfig.key) {
-      filtered.sort((a, b) => {
-        let aVal = a[sortConfig.key];
-        let bVal = b[sortConfig.key];
-
-        // Handle null/undefined
-        if (aVal == null) return 1;
-        if (bVal == null) return -1;
-
-        if (typeof aVal === 'string') {
-          aVal = aVal.toLowerCase();
-          bVal = bVal.toLowerCase();
-        }
-
-        if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
-        if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
-        return 0;
-      });
-    }
-
-    return filtered;
+    return applySorting(filtered);
   };
 
   const handleSort = (key) => {

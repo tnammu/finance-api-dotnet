@@ -16,7 +16,7 @@ export default function StockAlerts() {
     setPicks(null);
     setSmsResult(null);
     try {
-      const res = await axios.get(`${API_BASE}/alerts/top-picks`);
+      const res = await axios.get(`${API_BASE}/alerts/top-picks`, { timeout: 600000 }); // 10 min max
       setPicks(res.data);
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to fetch top picks. Is the API running?');

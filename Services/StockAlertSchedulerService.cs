@@ -59,6 +59,25 @@ namespace FinanceApi.Services
                 "Alert scheduler started. Schedule: {Times} {Tz} (weekdays only)",
                 string.Join(", ", scheduledTimes), tz.DisplayName);
 
+            // Warm the analysis cache 30s after startup so first user request is instant
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await Task.Delay(TimeSpan.FromSeconds(30), stoppingToken);
+                    _logger.LogInformation("Warming stock analysis cache on startup...");
+                    using var scope = _serviceProvider.CreateScope();
+                    var alertService = scope.ServiceProvider.GetRequiredService<StockAlertService>();
+                    await alertService.GetTopPicksAsync();
+                    _logger.LogInformation("Startup cache warm-up complete");
+                }
+                catch (OperationCanceledException) { }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Startup cache warm-up failed (non-critical)");
+                }
+            }, stoppingToken);
+
             using var timer = new PeriodicTimer(TimeSpan.FromSeconds(30));
 
             while (await timer.WaitForNextTickAsync(stoppingToken))

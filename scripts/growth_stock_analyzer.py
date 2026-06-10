@@ -11,7 +11,7 @@ Analyzes stocks using 5 growth filters:
 import yfinance as yf
 import sys
 import json
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 def log(message):
     """Print to stderr so it doesn't interfere with JSON output"""
@@ -281,7 +281,7 @@ def analyze_growth_stock(symbol):
                 "free_cash_flow": filter_5
             },
             "filters_count": sum(filters_passed),
-            "fetched_at": datetime.utcnow().isoformat()
+            "fetched_at": datetime.now(timezone.utc).isoformat()
         }
 
         return result

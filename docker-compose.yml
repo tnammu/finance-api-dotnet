@@ -12,6 +12,8 @@ services:
       - ASPNETCORE_ENVIRONMENT=Development
       - ASPNETCORE_URLS=http://+:5000
       - ConnectionStrings__DefaultConnection=Data Source=/app/data/dividends.db;Cache=Shared;Mode=ReadWriteCreate
+    networks:
+      - app-network
     restart: always
 
   frontend:
@@ -23,7 +25,13 @@ services:
       - "3000:80"
     depends_on:
       - backend
+    networks:
+      - app-network
     restart: always
 
 volumes:
   sqlite-data:
+
+networks:
+  app-network:
+    driver: bridge

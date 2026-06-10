@@ -48,8 +48,8 @@ MIN_DATA_DAYS      = 200
 CACHE_DB_NAME      = "price_cache.db"
 FULL_REFRESH_DAYS  = 7    # Re-download 5y if cache is older than this
 INCREMENTAL_DAYS   = 15   # Days to fetch for incremental update
-BATCH_SIZE         = 150
-BATCH_DELAY        = 3.0
+BATCH_SIZE         = 200
+BATCH_DELAY        = 1.0
 
 # --- Sentiment: macro RSS feeds ---
 MACRO_RSS_FEEDS = [
@@ -192,6 +192,39 @@ def get_stock_news_scores(candidates):
     return news_data
 
 
+def get_stock_news_scores_cached(candidates, cache_path, max_age_hours=2):
+    """
+    Fetch yfinance news scores with SQLite cache (2h TTL).
+    Only makes network calls for symbols not in cache or with stale data.
+    """
+    conn   = init_cache(cache_path)
+    cutoff = (datetime.now() - timedelta(hours=max_age_hours)).isoformat()
+    ph     = ",".join("?" * len(candidates))
+    rows   = conn.execute(
+        f"SELECT Symbol, Score, Headline FROM NewsScoreCache WHERE Symbol IN ({ph}) AND FetchedAt > ?",
+        candidates + [cutoff]
+    ).fetchall()
+    conn.close()
+
+    cached      = {r[0]: {"score": r[1], "headline": r[2]} for r in rows}
+    fresh_cands = [s for s in candidates if s not in cached]
+    log(f"News cache: {len(cached)} hits, {len(fresh_cands)} to fetch")
+
+    if fresh_cands:
+        fresh = get_stock_news_scores(fresh_cands)
+        if fresh:
+            conn = init_cache(cache_path)
+            conn.executemany(
+                "INSERT OR REPLACE INTO NewsScoreCache (Symbol, Score, Headline, FetchedAt) VALUES (?,?,?,?)",
+                [(s, d["score"], d["headline"], datetime.now().isoformat()) for s, d in fresh.items()]
+            )
+            conn.commit()
+            conn.close()
+        cached.update(fresh)
+
+    return cached
+
+
 def combined_sentiment(sym, stock_score, macro):
     """Blend per-stock news score with relevant macro sector score."""
     short   = sym.replace(".TO", "").replace(".V", "")
@@ -329,6 +362,14 @@ def init_cache(cache_path):
             FetchedAt TEXT NOT NULL
         )
     """)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS NewsScoreCache (
+            Symbol    TEXT PRIMARY KEY,
+            Score     REAL,
+            Headline  TEXT,
+            FetchedAt TEXT NOT NULL
+        )
+    """)
     conn.commit()
     return conn
 
@@ -367,7 +408,7 @@ def _save_df(conn, symbol, df, full_fetch=False):
             LastFullFetch = COALESCE(?, LastFullFetch),
             LastDate      = MAX(LastDate, ?)
     """, (symbol, full_str, last_date, full_str, last_date))
-    conn.commit()
+    # Caller is responsible for conn.commit() to batch writes
 
 
 def _load_df(conn, symbol):
@@ -459,12 +500,14 @@ def get_price_data(symbols, cache_path):
         data = _batch_download(needs_full, period="5y", label="(full 5y) ")
         for sym, df in data.items():
             _save_df(conn, sym, df, full_fetch=True)
+        conn.commit()  # one commit for the whole batch
 
     if needs_incr:
         start_str = (today - timedelta(days=INCREMENTAL_DAYS)).isoformat()
         data = _batch_download(needs_incr, start=start_str, label="(incremental) ")
         for sym, df in data.items():
             _save_df(conn, sym, df, full_fetch=False)
+        conn.commit()  # one commit for the whole batch
 
     result = {}
     for sym in symbols:
@@ -822,6 +865,40 @@ def get_top_seasonal(results, n=10):
     return [d for _, d in c[:n]]
 
 
+# ── File-based result cache ────────────────────────────────────────────────────
+
+RESULT_CACHE_FILE  = "picks_cache.json"
+RESULT_CACHE_HOURS = 4   # matches C# in-memory cache TTL
+
+
+def load_result_cache(script_dir):
+    """Return cached result dict if picks_cache.json is fresh enough, else None."""
+    cache_file = os.path.join(script_dir, RESULT_CACHE_FILE)
+    if not os.path.exists(cache_file):
+        return None
+    try:
+        age_hours = (time.time() - os.path.getmtime(cache_file)) / 3600
+        if age_hours < RESULT_CACHE_HOURS:
+            with open(cache_file) as f:
+                data = json.load(f)
+            log(f"File cache hit: {RESULT_CACHE_FILE} ({age_hours:.1f}h old) — skipping analysis")
+            return data
+    except Exception as e:
+        log(f"File cache read failed: {e}")
+    return None
+
+
+def save_result_cache(script_dir, result):
+    """Write analysis result to picks_cache.json for fast re-use within 4h."""
+    cache_file = os.path.join(script_dir, RESULT_CACHE_FILE)
+    try:
+        with open(cache_file, "w") as f:
+            json.dump(result, f, indent=2)
+        log(f"Result saved to {RESULT_CACHE_FILE}")
+    except Exception as e:
+        log(f"File cache write failed: {e}")
+
+
 # ── Entry point ────────────────────────────────────────────────────────────────
 
 def main():
@@ -833,6 +910,12 @@ def main():
     if not os.path.exists(db_path):
         print(json.dumps({"error": f"Database not found: {db_path}"}))
         sys.exit(1)
+
+    # ── Fast path: return file cache if fresh (< 4h) ──────────────────────────
+    cached_result = load_result_cache(script_dir)
+    if cached_result is not None:
+        print(json.dumps(cached_result, indent=2))
+        return
 
     symbols = get_symbols(db_path, cache_path)
     if not symbols:
@@ -848,14 +931,11 @@ def main():
     # Step 2: Macro geo-political sentiment from RSS (cached 1h)
     macro = get_macro_sentiment_cached(cache_path)
 
-    # Step 3: Per-stock news — only for top ~50 candidates to keep it fast
-    #         We pick candidates by doing a quick pre-analysis pass first,
-    #         then fetch news only for the most promising symbols.
+    # Step 3: Per-stock news — only for top ~50 candidates to keep it fast.
+    #         Pre-screen first (no network), then fetch news for best candidates only.
     log("Pre-screening candidates for news fetch...")
     pre_results = analyze_stocks(all_data)  # no sentiment yet
 
-    # Use BROAD thresholds for news candidate selection (not the strict final thresholds)
-    # — ensures ~50 candidates get news fetched so get_top_news has enough to rank from
     broad_rsi    = sorted([(s, d) for s, d in pre_results.items()
                             if d.get("rsi", 100) < 45 and d.get("trend") != "Downtrend"],
                            key=lambda x: x[1]["rsi"])
@@ -868,7 +948,7 @@ def main():
     news_cands   = list(dict.fromkeys(rsi_cands + swing_cands + season_cands))  # ~50-70 unique
 
     log(f"Fetching yfinance news for {len(news_cands)} candidates...")
-    news_scores = get_stock_news_scores(news_cands)
+    news_scores = get_stock_news_scores_cached(news_cands, cache_path)
 
     # Step 4: Full analysis with sentiment applied
     results = analyze_stocks(all_data, news_scores=news_scores, macro=macro)
@@ -877,10 +957,9 @@ def main():
         print(json.dumps({"error": "Could not analyze any stocks"}))
         sys.exit(1)
 
-    # Macro summary for the message (sector label + arrow)
     macro_summary = {k: v for k, v in macro.items() if k != "overall"}
 
-    print(json.dumps({
+    output = {
         "generated_at":      datetime.now().isoformat(),
         "total_analyzed":    len(results),
         "total_in_universe": len(symbols),
@@ -898,7 +977,10 @@ def main():
         "swing":    get_top_swing(results),
         "seasonal": get_top_seasonal(results),
         "news":     get_top_news(results),
-    }, indent=2))
+    }
+
+    save_result_cache(script_dir, output)
+    print(json.dumps(output, indent=2))
 
 
 if __name__ == "__main__":
