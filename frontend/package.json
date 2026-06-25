@@ -7,7 +7,7 @@
     "react-dom": "^18.2.0",
     "react-router-dom": "^6.20.0",
     "recharts": "^2.10.3",
-    "axios": "^1.6.2"
+    "axios": "^1.13.2"
   },
   "scripts": {
     "start": "react-scripts start",
